@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>SSE Demo</title></head>
+<body>
+  <h3>SSE Room Stream</h3>
+  <ul id="sse"></ul>
+  <script>
+    const ROOM_ID = 'ROOM_ID_HERE';
+    const ME = 'LEE';
+    const es = new EventSource(`/api/sse/rooms/${ROOM_ID}?me=${ME}`);
+    es.addEventListener('connected', e => console.log('SSE connected', e.data));
+    es.addEventListener('message', e => {
+      const li = document.createElement('li');
+      li.textContent = e.data;
+      document.getElementById('sse').appendChild(li);
+    });
+  </script>
+</body>
+</html>
