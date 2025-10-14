@@ -8,3 +8,12 @@ spring:
 
 server:
   port: 8080
+
+
+app:
+  crypto:
+    aesKeyBase64: "l7C0k5XQk4rJq1kC2n9kq2y2Tj5Vf2zB2c0yQkq1o6U="  # AES-GCM용 (32바이트)
+  jwt:
+    secretBase64: "y4LZbRkYx3hG3cG+6QOKXt+1RyV4PRaAMT6RuFSC9+0=" # JWT 서명용 (32바이트)
+    expiresMinutes: 120
+
