@@ -26,7 +26,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .httpBasic(Customizer.withDefaults());
+                // 🔴 기본 인증/폼 로그인 비활성화 (팝업 제거)
+                .httpBasic(b -> b.disable())
+                .formLogin(f -> f.disable());
         return http.build();
     }
+
 }
