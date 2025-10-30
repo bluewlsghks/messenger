@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>채팅</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ✅ 공통 Auth JS (defer 유지) -->
+    <script src="/js/auth.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body class="bg-zinc-900 text-zinc-100 flex flex-col h-screen">
+
+<header class="h-14 bg-zinc-950 flex items-center px-4 border-b border-zinc-800 gap-3">
+    <h1 id="title" class="text-lg font-semibold flex-1">채팅</h1>
+    <a href="/rooms" class="text-sm text-zinc-400 hover:text-zinc-200">← 목록</a>
+    <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400 ml-3">로그아웃</button>
+</header>
+
+<main id="list" class="flex-1 overflow-y-auto p-4 space-y-2"></main>
+
+<footer class="border-t border-zinc-800 p-3 bg-zinc-950 flex gap-2">
+    <input id="input"
+           class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none"
+           placeholder="메시지를 입력하세요..." />
+    <button id="send" class="bg-emerald-600 px-4 py-2 rounded-lg text-white">보내기</button>
+</footer>
+
+<!-- chat.html의 <script> 내부 전체를 이 버전으로 교체 -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!Auth.requireLogin()) return;
+      Auth.attachLogoutButton("logoutBtn");
+
+      const token    = Auth.getToken();
+      const loginId  = Auth.getLoginId();
+      const userName = Auth.getUserName() || loginId;
+
+      const roomId = location.pathname.split("/chat/")[1];
+      document.getElementById("title").textContent = "방 ID: " + roomId;
+
+      const listEl  = document.getElementById("list");
+      const inputEl = document.getElementById("input");
+
+      // 메시지 엘리먼트 참조 저장: id -> {el, data}
+      const msgMap = new Map();
+
+      function fmtTime(iso) {
+        try {
+          const d = new Date(iso);
+          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch { return ''; }
+      }
+
+      function renderMessage(m) {
+        // 이미 렌더한 메시지는 건너뜀
+        if (m.id && msgMap.has(m.id)) return;
+
+        const mine = m.senderId === loginId;
+        const row = document.createElement("div");
+        row.className = `flex ${mine ? "justify-end" : "justify-start"}`;
+
+        const bubble = document.createElement("div");
+        bubble.className = `max-w-[70%] px-3 py-2 rounded-2xl ${mine ? "bg-emerald-700" : "bg-zinc-800"}`;
+
+        const head = document.createElement("div");
+        head.className = "text-[11px] text-zinc-300 mb-1";
+        head.textContent = m.senderName || m.senderId;
+
+        const body = document.createElement("div");
+        body.className = "text-sm";
+        body.textContent = m.content;
+
+        const meta = document.createElement("div");
+        meta.className = "mt-1 flex items-center gap-2 text-[10px] text-zinc-400";
+        const timeSpan = document.createElement("span");
+        timeSpan.textContent = fmtTime(m.createdAt);
+        meta.appendChild(timeSpan);
+
+        // 읽음 뱃지(내 메시지에만)
+        let readSpan = null;
+        if (mine) {
+          readSpan = document.createElement("span");
+          readSpan.className = "px-1.5 py-0.5 rounded bg-zinc-700/60";
+          const readers = (m.readBy || []).filter(u => u !== loginId);
+          readSpan.textContent = readers.length ? `읽음 ${readers.length}` : `안읽음`;
+          meta.appendChild(readSpan);
+        }
+
+        bubble.appendChild(head);
+        bubble.appendChild(body);
+        bubble.appendChild(meta);
+        row.appendChild(bubble);
+        listEl.appendChild(row);
+        row.scrollIntoView({ behavior: "smooth" });
+
+        if (m.id) {
+          msgMap.set(m.id, { el: row, data: m, readSpan });
+        }
+      }
+
+      // 히스토리 로드
+      async function loadHistory() {
+        const res = await Auth.authFetch(`/api/messages/${roomId}?limit=50`);
+        if (!res.ok) {
+          listEl.innerHTML = `<p class="text-red-400">히스토리를 불러올 수 없습니다 (${res.status})</p>`;
+          return;
+        }
+        const msgs = await res.json();
+        listEl.innerHTML = "";
+        // 오래된 순서대로 렌더(서버가 desc면 뒤집기)
+        msgs.reverse().forEach(renderMessage);
+        // 읽음 전송
+        sendReadForUnseen();
+      }
+
+      // 아직 내가 안 읽은 메시지들을 서버에 읽음 처리
+      let readQueueTimer = null;
+      function sendReadForUnseen() {
+        // 내 메시지는 제외, 이미 readBy에 내가 있으면 제외
+        const targetIds = [];
+        for (const [id, {data}] of msgMap.entries()) {
+          if (!data) continue;
+          if (data.senderId === loginId) continue;
+          const rb = new Set(data.readBy || []);
+          if (!rb.has(loginId)) targetIds.push(id);
+        }
+        if (!targetIds.length) return;
+
+        // 디바운스(짧게 묶어서 한번에 전송)
+        clearTimeout(readQueueTimer);
+        readQueueTimer = setTimeout(async () => {
+          try {
+            await Auth.authFetch("/api/messages/read", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ roomId, messageIds: targetIds })
+            });
+            // 낙관적 반영: 내 화면에도 즉시 읽음 표시 업데이트
+            for (const id of targetIds) {
+              const entry = msgMap.get(id);
+              if (entry) {
+                entry.data.readBy = Array.from(new Set([ ...(entry.data.readBy || []), loginId ]));
+                // 내 메시지가 아니므로 readSpan은 없음
+              }
+            }
+          } catch (e) {
+            console.warn("read update failed", e);
+          }
+        }, 150);
+      }
+
+      // STOMP 연결
+      const sock   = new SockJS("/ws-stomp");
+      const client = Stomp.over(sock);
+      client.debug  = null;
+      Auth.setStompClient(client);
+
+      client.connect({ Authorization: "Bearer " + Auth.getToken() }, async () => {
+        await loadHistory();
+
+        // 새 메시지
+        client.subscribe(`/sub/chat/${roomId}`, msg => {
+          const data = JSON.parse(msg.body);
+          renderMessage(data);
+          // 내가 보낸 게 아니면 읽음 전송
+          if (data.senderId !== loginId) sendReadForUnseen();
+        });
+
+        // 읽음 업데이트
+        client.subscribe(`/sub/chat/${roomId}/read`, frame => {
+          const payload = JSON.parse(frame.body);
+          const readerId = payload.readerId;
+          const ids = payload.messageIds || [];
+          ids.forEach(id => {
+            const entry = msgMap.get(id);
+            if (!entry) return;
+            const { data, readSpan } = entry;
+            data.readBy = Array.from(new Set([ ...(data.readBy || []), readerId ]));
+
+            // 내 메시지일 때만 배지 업데이트
+            if (data.senderId === loginId && readSpan) {
+              const readers = (data.readBy || []).filter(u => u !== loginId);
+              readSpan.textContent = readers.length ? `읽음 ${readers.length}` : `안읽음`;
+            }
+          });
+        });
+      });
+
+      // 메시지 전송
+      document.getElementById("send").onclick = send;
+      inputEl.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+      });
+
+      function send() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+        client.send("/pub/chat.send", {}, JSON.stringify({
+          roomId,
+          senderId: loginId,
+          senderName: userName,
+          content: text
+        }));
+        inputEl.value = "";
+      }
+    });
+</script>
+</body>
+</html>

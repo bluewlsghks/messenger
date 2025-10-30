@@ -9,4 +9,7 @@ import java.util.Optional;
 public interface RoomRepository extends MongoRepository<Room, String> {
     List<Room> findByTypeAndMembersIn(RoomType type, Iterable<String> members);
     Optional<Room> findByMembersKey(String membersKey);
+    List<Room> findByMembersContaining(String memberId);
 }
+
+

@@ -22,6 +22,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     implementation("org.springframework.security:spring-security-crypto")

@@ -15,12 +15,18 @@ public class Room {
     @Id
     public String id;
     @Indexed
-    public RoomType type = RoomType.DIRECT; // DIRECT or GROUP
+    public RoomType type; // DIRECT or GROUP
     public List<String> members;            // usernames
     public String membersKey;               // e.g. "alice#bob" (sorted)
     public Instant createdAt = Instant.now();
 
     public Room() {}
+
+    /** ✅ 방 유형 정의 */
+    public enum Type {
+        DIRECT,   // 1:1 대화
+        GROUP     // 그룹 대화
+    }
 
     public static Room directOf(String a, String b) {
         String[] arr = new String[]{a, b};
