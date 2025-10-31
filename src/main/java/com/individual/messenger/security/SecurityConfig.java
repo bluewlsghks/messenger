@@ -29,44 +29,33 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 세션 상태 없음(JWT)
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // CSRF: 폼이 아닌 fetch JSON 이므로 인증 API는 제외
-                .csrf(csrf -> csrf.ignoringRequestMatchers(
-                        new AntPathRequestMatcher("/ws-stomp/**"),
-                        new AntPathRequestMatcher("/api/auth/**")
-                ))
-
-                // CORS
+                .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
-
-                // 경로별 권한
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint(new ApiAuthEntryPoint())
+                        .accessDeniedHandler(new ApiAccessDeniedHandler())
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // ✅ 정적 리소스 URL 허용
-                        .requestMatchers("/js/**", "/css/**", "/images/**", "/webjars/**", "/favicon.ico").permitAll()
+                        // 로그인/회원가입/정적/WS
+                        .requestMatchers("/login", "/register", "/api/auth/**").permitAll()
+                        .requestMatchers("/js/**", "/css/**", "/images/**", "/favicon.ico", "/webjars/**").permitAll()
+                        .requestMatchers("/ws-stomp/**").permitAll()
 
-                        // ✅ 뷰 페이지 허용
-                        .requestMatchers("/", "/rooms", "/chat/**", "/login", "/register", "/ws-stomp/**").permitAll()
+                        // ✅ HTML 뷰들은 열어둠 (초기 로딩용)
+                        .requestMatchers("/", "/home", "/rooms", "/friends", "/chat/**").permitAll()
 
-                        // ✅ 인증 API 허용
-                        .requestMatchers("/api/auth/**").permitAll()
-
-                        // ✅ 보호할 API
-                        .requestMatchers("/api/rooms/**", "/api/messages/**").authenticated()
+                        // ✅ 데이터 API만 보호
+                        .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().authenticated()
                 )
-
-                // 폼/기본 인증 비활성화
                 .httpBasic(b -> b.disable())
                 .formLogin(b -> b.disable());
 
-        // JWT 필터가 있다면 체인에 등록 (없으면 이 줄 제거)
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 

@@ -14,6 +14,8 @@ import java.util.List;
 import org.springframework.data.mongodb.core.query.*;
 import org.springframework.data.mongodb.core.query.Update;
 import java.util.Map;
+import org.springframework.data.domain.Sort;
+
 
 @Service
 public class MessageService {
@@ -52,17 +54,15 @@ public class MessageService {
      * 최신 순으로 가져온 뒤 UI 편의를 위해 오름차순(과거→최신)으로 뒤집어 반환
      */
     public List<Message> history(String roomId, Instant before, int limit) {
-        if (limit <= 0) limit = 50;
-        var pageable = PageRequest.of(0, limit);
+        if (before == null) before = Instant.now();
 
-        List<Message> desc;
-        if (before != null) {
-            desc = messageRepo.findByRoomIdAndCreatedAtLessThanOrderByCreatedAtDesc(roomId, before, pageable);
-        } else {
-            desc = messageRepo.findByRoomIdOrderByCreatedAtDesc(roomId, pageable);
-        }
+        Query q = new Query(Criteria.where("roomId").is(roomId)
+                .and("createdAt").lt(before))
+                .with(Sort.by(Sort.Direction.DESC, "createdAt")) // 최신부터 뽑고
+                .limit(limit);
 
-        Collections.reverse(desc); // UI에서 위→아래로 자연스럽게 보이도록
+        List<Message> desc = mongoTemplate.find(q, Message.class);
+        java.util.Collections.reverse(desc); // ↩ 오름차순으로 뒤집어서 반환
         return desc;
     }
 

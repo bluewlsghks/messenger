@@ -57,7 +57,7 @@
         Auth.setAuth(data);
 
         alert(`${data.userName}님 환영합니다!`);
-        window.location.href = "/rooms"; // ✅ 로그인 후 메인 화면 이동
+        window.location.href = "/home"; // ✅ 로그인 후 메인 화면 이동
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.message || "로그인 실패. 아이디/비밀번호를 확인하세요.");

@@ -17,16 +17,20 @@
     <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400 ml-3">로그아웃</button>
 </header>
 
-<main id="list" class="flex-1 overflow-y-auto p-4 space-y-2"></main>
+<main id="list" class="flex-1 overflow-y-auto p-4 space-y-2">
+    <!-- ⬇️ 스피너: 무한스크롤 로딩 시 표시 -->
+    <div id="topSpinner" class="sticky top-0 flex justify-center -mt-2 mb-2 hidden">
+        <div class="animate-spin h-5 w-5 border-2 border-zinc-500 border-t-transparent rounded-full"></div>
+    </div>
+</main>
 
 <footer class="border-t border-zinc-800 p-3 bg-zinc-950 flex gap-2">
-    <input id="input"
+    <textarea id="input"
            class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none"
-           placeholder="메시지를 입력하세요..." />
-    <button id="send" class="bg-emerald-600 px-4 py-2 rounded-lg text-white">보내기</button>
+              placeholder="메시지를 입력하세요..."></textarea>
+    <button id="send" class="bg-emerald-600 px-4 py-2 rounded-lg text-white disabled:opacity-50">보내기</button>
 </footer>
 
-<!-- chat.html의 <script> 내부 전체를 이 버전으로 교체 -->
 <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (!Auth.requireLogin()) return;
@@ -39,11 +43,87 @@
       const roomId = location.pathname.split("/chat/")[1];
       document.getElementById("title").textContent = "방 ID: " + roomId;
 
-      const listEl  = document.getElementById("list");
-      const inputEl = document.getElementById("input");
+      const listEl    = document.getElementById("list");
+      const spinnerEl = document.getElementById("topSpinner");
+      const inputEl   = document.getElementById("input");
+      const sendBtn   = document.getElementById("send");
 
-      // 메시지 엘리먼트 참조 저장: id -> {el, data}
-      const msgMap = new Map();
+      // === 상태값 ===
+      const msgMap = new Map();   // id -> { el, data, readSpan }
+      let oldestTs   = null;      // 가장 오래된 메시지 createdAt(ISO)
+      let loadingOlder = false;   // 과거 로딩 중
+      let hasMore      = true;    // 더 가져올 과거 존재?
+      const PAGE_SIZE  = 50;
+
+      // ✅ STOMP 연결 상태/대기열
+      let isConnected = false;
+      const pendingSends = []; // { destination, headers, payload }
+
+      // === 날짜 구분선 유틸 ===
+      const kstDateFmtKey   = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit' }); // YYYY-MM-DD
+      function dayKeyFromISO(iso) {
+        try { return kstDateFmtKey.format(new Date(iso)); }
+        catch { return ''; }
+      }
+      function todayKey() {
+        return kstDateFmtKey.format(new Date());
+      }
+      function yesterdayKey() {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        return kstDateFmtKey.format(d);
+      }
+      function dayLabel(key) {
+        if (key === todayKey()) return '오늘';
+        if (key === yesterdayKey()) return '어제';
+        const [y,m,d] = key.split('-');
+        return `${y}.${m}.${d}`;
+      }
+
+      function ensureDayDividerForAppend(key) {
+        if (!key) return;
+        if (document.getElementById(`day-${key}`)) return;
+
+        const lastDivider = [...listEl.querySelectorAll('.day-divider')].at(-1);
+        const lastKey = lastDivider ? lastDivider.dataset.day : null;
+        if (lastKey === key) return;
+
+        const hr = document.createElement('div');
+        hr.id = `day-${key}`;
+        hr.dataset.day = key;
+        hr.className = "day-divider sticky top-2 z-0 flex items-center my-3";
+        hr.innerHTML = `
+          <div class="flex-1 border-t border-zinc-700"></div>
+          <span class="mx-2 text-[11px] text-zinc-400 bg-zinc-900 px-2">${dayLabel(key)}</span>
+          <div class="flex-1 border-t border-zinc-700"></div>
+        `;
+        listEl.appendChild(hr);
+      }
+
+      function ensureDayDividerForPrepend(key) {
+        if (!key) return;
+        if (document.getElementById(`day-${key}`)) return;
+
+        const firstDivider = listEl.querySelector('.day-divider');
+        const firstKey = firstDivider ? firstDivider.dataset.day : null;
+        if (firstKey === key) return;
+
+        const hr = document.createElement('div');
+        hr.id = `day-${key}`;
+        hr.dataset.day = key;
+        hr.className = "day-divider sticky top-2 z-0 flex items-center my-3";
+        hr.innerHTML = `
+          <div class="flex-1 border-t border-zinc-700"></div>
+          <span class="mx-2 text-[11px] text-zinc-400 bg-zinc-900 px-2">${dayLabel(key)}</span>
+          <div class="flex-1 border-t border-zinc-700"></div>
+        `;
+        const firstChild = listEl.firstChild; // 보통 spinner
+        listEl.insertBefore(hr, firstChild && firstChild.id === 'topSpinner' ? firstChild.nextSibling : firstChild);
+      }
+
+      function scrollToBottom() {
+        requestAnimationFrame(() => { listEl.scrollTop = listEl.scrollHeight; });
+      }
 
       function fmtTime(iso) {
         try {
@@ -52,13 +132,13 @@
         } catch { return ''; }
       }
 
-      function renderMessage(m) {
-        // 이미 렌더한 메시지는 건너뜀
+      // prepend 여부를 받아 메시지 렌더
+      function renderMessage(m, { prepend = false } = {}) {
         if (m.id && msgMap.has(m.id)) return;
 
         const mine = m.senderId === loginId;
         const row = document.createElement("div");
-        row.className = `flex ${mine ? "justify-end" : "justify-start"}`;
+        row.className = `msg-row flex ${mine ? "justify-end" : "justify-start"}`;
 
         const bubble = document.createElement("div");
         bubble.className = `max-w-[70%] px-3 py-2 rounded-2xl ${mine ? "bg-emerald-700" : "bg-zinc-800"}`;
@@ -77,7 +157,6 @@
         timeSpan.textContent = fmtTime(m.createdAt);
         meta.appendChild(timeSpan);
 
-        // 읽음 뱃지(내 메시지에만)
         let readSpan = null;
         if (mine) {
           readSpan = document.createElement("span");
@@ -91,43 +170,201 @@
         bubble.appendChild(body);
         bubble.appendChild(meta);
         row.appendChild(bubble);
-        listEl.appendChild(row);
-        row.scrollIntoView({ behavior: "smooth" });
 
-        if (m.id) {
-          msgMap.set(m.id, { el: row, data: m, readSpan });
+        const key = dayKeyFromISO(m.createdAt);
+        if (prepend) ensureDayDividerForPrepend(key);
+        else         ensureDayDividerForAppend(key);
+
+        if (prepend) {
+          const afterSpinner = (listEl.firstChild && listEl.firstChild.id === 'topSpinner') ? listEl.firstChild.nextSibling : listEl.firstChild;
+          listEl.insertBefore(row, afterSpinner || null);
+        } else {
+          listEl.appendChild(row);
         }
+
+        if (m.id) msgMap.set(m.id, { el: row, data: m, readSpan });
       }
 
-      // 히스토리 로드
+      // 초기/재입장: 최신 N개(오름차순) 로딩
       async function loadHistory() {
-        const res = await Auth.authFetch(`/api/messages/${roomId}?limit=50`);
+        const res = await Auth.authFetch(`/api/messages/${roomId}?limit=${PAGE_SIZE}`);
         if (!res.ok) {
           listEl.innerHTML = `<p class="text-red-400">히스토리를 불러올 수 없습니다 (${res.status})</p>`;
+          hasMore = false;
           return;
         }
-        const msgs = await res.json();
-        listEl.innerHTML = "";
-        // 오래된 순서대로 렌더(서버가 desc면 뒤집기)
-        msgs.reverse().forEach(renderMessage);
-        // 읽음 전송
+        const msgs = await res.json();   // 서버가 오름차순으로 반환
+        listEl.querySelectorAll('.msg-row, .day-divider').forEach(n => n.remove());
+        if (!msgs.length) {
+          ensureDayDividerForAppend(todayKey());
+          scrollToBottom();
+          hasMore = false;
+          return;
+        }
+
+        let lastKey = null;
+        msgs.forEach(m => {
+          const k = dayKeyFromISO(m.createdAt);
+          if (k !== lastKey) ensureDayDividerForAppend(k);
+          renderMessage(m);
+          lastKey = k;
+        });
+
+        oldestTs = msgs[0].createdAt;
+        hasMore  = msgs.length >= PAGE_SIZE;
+
+        scrollToBottom();
+        // 연결 후에도 호출되도록 하지만, 최초 렌더 직후 한 번 시도
         sendReadForUnseen();
       }
 
-      // 아직 내가 안 읽은 메시지들을 서버에 읽음 처리
-      let readQueueTimer = null;
+      // 스크롤 이벤트: 위에 닿으면 과거 더 가져오기
+      listEl.addEventListener('scroll', () => {
+        if (listEl.scrollTop <= 24) {
+          loadOlder();
+        }
+      });
+
+      function showTopSpinner(v) {
+        spinnerEl.classList.toggle('hidden', !v);
+      }
+
+      async function loadOlder() {
+        if (loadingOlder || !hasMore || !oldestTs) return;
+        loadingOlder = true;
+        showTopSpinner(true);
+
+        const prevHeight = listEl.scrollHeight;
+        try {
+          const url = `/api/messages/${roomId}?before=${encodeURIComponent(oldestTs)}&limit=${PAGE_SIZE}`;
+          const res = await Auth.authFetch(url);
+          if (!res.ok) { hasMore = false; return; }
+          const older = await res.json(); // 오름차순
+
+          if (!older.length) { hasMore = false; return; }
+
+          let firstKey = null;
+          older.forEach(m => {
+            const k = dayKeyFromISO(m.createdAt);
+            if (k !== firstKey) ensureDayDividerForPrepend(k);
+            renderMessage(m, { prepend: true });
+            firstKey = k;
+          });
+
+          oldestTs = older[0].createdAt;
+          hasMore  = older.length >= PAGE_SIZE;
+
+          const newHeight = listEl.scrollHeight;
+          listEl.scrollTop = newHeight - prevHeight;
+          sendReadForUnseen();
+        } catch (e) {
+          console.warn('loadOlder failed', e);
+        } finally {
+          loadingOlder = false;
+          showTopSpinner(false);
+        }
+      }
+
+      // ===============================
+      // ✅ STOMP 연결 및 안전 전송
+      // ===============================
+      const sock   = new SockJS("/ws-stomp");
+      const client = Stomp.over(sock);
+      client.debug = null;
+      Auth.setStompClient(client);
+
+      // 연결 전엔 버튼 비활성화
+      sendBtn.disabled = true;
+
+      client.connect({ Authorization: "Bearer " + token }, async () => {
+        isConnected = true;
+        sendBtn.disabled = false;
+
+        // 1) 히스토리 먼저
+        await loadHistory();
+
+        // 2) 구독들 (✅ 반드시 connect 콜백 안)
+        client.subscribe(`/sub/chat/${roomId}`, msg => {
+          const data = JSON.parse(msg.body);
+          const k = dayKeyFromISO(data.createdAt);
+          ensureDayDividerForAppend(k);
+          renderMessage(data);
+          requestAnimationFrame(() => listEl.scrollTop = listEl.scrollHeight);
+          if (data.senderId !== loginId) sendReadForUnseen();
+        });
+
+        client.subscribe(`/sub/chat/${roomId}/read`, frame => {
+          const { readerId, messageIds = [] } = JSON.parse(frame.body);
+          for (const id of messageIds) {
+            const entry = msgMap.get(id);
+            if (!entry) continue;
+            const { data, readSpan } = entry;
+            data.readBy = Array.from(new Set([ ...(data.readBy || []), readerId ]));
+            if (data.senderId === loginId && readSpan) {
+              const readers = (data.readBy || []).filter(u => u !== loginId);
+              readSpan.textContent = readers.length ? `읽음 ${readers.length}` : `안읽음`;
+            }
+          }
+        });
+
+        // 3) 대기열 flush
+        flushPendingSends();
+      });
+
+      function safeSend(destination, headers, payload) {
+        const job = { destination, headers, payload };
+        if (!isConnected || !client.connected) {
+          pendingSends.push(job);
+          return;
+        }
+        client.send(destination, headers, payload);
+      }
+
+      function flushPendingSends() {
+        while (pendingSends.length && isConnected && client.connected) {
+          const { destination, headers, payload } = pendingSends.shift();
+          client.send(destination, headers, payload);
+        }
+      }
+
+      // ===============================
+      // 입력/전송
+      // ===============================
+      sendBtn.onclick = send;
+      inputEl.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+      });
+
+      function send() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+        const payload = JSON.stringify({
+          roomId,
+          senderId: loginId,
+          senderName: userName,
+          content: text
+        });
+        // ✅ 연결 상태에 따라 안전 전송
+        safeSend("/pub/chat.send", {}, payload);
+        inputEl.value = "";
+        requestAnimationFrame(() => listEl.scrollTop = listEl.scrollHeight);
+      }
+
+      // ===============================
+      // ✅ 읽음 처리 (TDZ 방지)
+      // ===============================
+      let readQueueTimer = null; // ← 선언을 최상단이 아닌, 적어도 함수보다 위에 둠
       function sendReadForUnseen() {
-        // 내 메시지는 제외, 이미 readBy에 내가 있으면 제외
         const targetIds = [];
-        for (const [id, {data}] of msgMap.entries()) {
-          if (!data) continue;
-          if (data.senderId === loginId) continue;
-          const rb = new Set(data.readBy || []);
-          if (!rb.has(loginId)) targetIds.push(id);
+        for (const [id, entry] of msgMap.entries()) {
+          const m = entry.data;
+          if (!m) continue;
+          if (m.senderId === loginId) continue;           // 내가 보낸 건 제외
+          const rb = new Set(m.readBy || []);
+          if (!rb.has(loginId)) targetIds.push(id);       // 내가 아직 안 읽음
         }
         if (!targetIds.length) return;
 
-        // 디바운스(짧게 묶어서 한번에 전송)
         clearTimeout(readQueueTimer);
         readQueueTimer = setTimeout(async () => {
           try {
@@ -136,75 +373,19 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ roomId, messageIds: targetIds })
             });
-            // 낙관적 반영: 내 화면에도 즉시 읽음 표시 업데이트
+            // 낙관적 업데이트
             for (const id of targetIds) {
-              const entry = msgMap.get(id);
-              if (entry) {
-                entry.data.readBy = Array.from(new Set([ ...(entry.data.readBy || []), loginId ]));
-                // 내 메시지가 아니므로 readSpan은 없음
-              }
+              const e = msgMap.get(id);
+              if (!e) continue;
+              e.data.readBy = Array.from(new Set([ ...(e.data.readBy || []), loginId ]));
             }
           } catch (e) {
             console.warn("read update failed", e);
           }
-        }, 150);
-      }
-
-      // STOMP 연결
-      const sock   = new SockJS("/ws-stomp");
-      const client = Stomp.over(sock);
-      client.debug  = null;
-      Auth.setStompClient(client);
-
-      client.connect({ Authorization: "Bearer " + Auth.getToken() }, async () => {
-        await loadHistory();
-
-        // 새 메시지
-        client.subscribe(`/sub/chat/${roomId}`, msg => {
-          const data = JSON.parse(msg.body);
-          renderMessage(data);
-          // 내가 보낸 게 아니면 읽음 전송
-          if (data.senderId !== loginId) sendReadForUnseen();
-        });
-
-        // 읽음 업데이트
-        client.subscribe(`/sub/chat/${roomId}/read`, frame => {
-          const payload = JSON.parse(frame.body);
-          const readerId = payload.readerId;
-          const ids = payload.messageIds || [];
-          ids.forEach(id => {
-            const entry = msgMap.get(id);
-            if (!entry) return;
-            const { data, readSpan } = entry;
-            data.readBy = Array.from(new Set([ ...(data.readBy || []), readerId ]));
-
-            // 내 메시지일 때만 배지 업데이트
-            if (data.senderId === loginId && readSpan) {
-              const readers = (data.readBy || []).filter(u => u !== loginId);
-              readSpan.textContent = readers.length ? `읽음 ${readers.length}` : `안읽음`;
-            }
-          });
-        });
-      });
-
-      // 메시지 전송
-      document.getElementById("send").onclick = send;
-      inputEl.addEventListener("keydown", e => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-      });
-
-      function send() {
-        const text = inputEl.value.trim();
-        if (!text) return;
-        client.send("/pub/chat.send", {}, JSON.stringify({
-          roomId,
-          senderId: loginId,
-          senderName: userName,
-          content: text
-        }));
-        inputEl.value = "";
+        }, 120);
       }
     });
 </script>
+
 </body>
 </html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>친구</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/js/auth.js" defer></script>
+    <script src="/js/friends.js" defer></script>
+</head>
+<body class="bg-zinc-900 text-zinc-100 h-screen flex flex-col">
+
+<header class="h-14 bg-zinc-950 flex items-center px-4 border-b border-zinc-800 gap-3">
+    <h1 class="text-lg font-semibold flex-1">친구</h1>
+    <a href="/rooms" class="text-sm text-zinc-400 hover:text-zinc-200">← 방 목록</a>
+    <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400 ml-3">로그아웃</button>
+</header>
+
+<main class="flex-1 p-4 space-y-6 overflow-y-auto">
+    <!-- 친구 추가 -->
+    <section class="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700">
+        <h2 class="text-base font-semibold mb-3">아이디로 친구 추가</h2>
+        <div class="flex gap-2">
+            <input id="friendId" class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none"
+                   placeholder="친구 ID를 입력하세요 (예: LEE)" />
+            <button id="addFriendBtn" class="bg-sky-600 px-4 py-2 rounded-lg text-white">추가</button>
+            <button id="startDmBtn" class="bg-emerald-600 px-4 py-2 rounded-lg text-white">DM 시작</button>
+        </div>
+        <p id="friendMsg" class="text-sm text-zinc-400 mt-2"></p>
+    </section>
+
+    <!-- 친구 목록 -->
+    <section class="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold">내 친구</h2>
+            <button id="reloadBtn" class="text-sm text-zinc-300 hover:text-white">새로고침</button>
+        </div>
+        <ul id="friendList" class="divide-y divide-zinc-800">
+            <!-- 동적 렌더링 -->
+        </ul>
+    </section>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireLogin()) return;
+      Auth.attachLogoutButton('logoutBtn');
+
+      const friendIdEl = document.getElementById('friendId');
+      const addBtn = document.getElementById('addFriendBtn');
+      const dmBtn = document.getElementById('startDmBtn');
+      const msgEl = document.getElementById('friendMsg');
+      const listEl = document.getElementById('friendList');
+      const reloadBtn = document.getElementById('reloadBtn');
+
+      async function loadFriends() {
+        listEl.innerHTML = `<li class="p-3 text-zinc-400">불러오는 중...</li>`;
+        try {
+          const res = await Auth.authFetch('/api/friends');
+          if (!res.ok) throw new Error(await res.text());
+          const items = await res.json(); // [{userId, userName}]
+          if (!items.length) {
+            listEl.innerHTML = `<li class="p-3 text-zinc-400">친구가 없습니다. 위에서 추가해 보세요.</li>`;
+            return;
+          }
+          listEl.innerHTML = '';
+          for (const f of items) {
+            const li = document.createElement('li');
+            li.className = 'p-3 flex items-center justify-between hover:bg-zinc-800/60';
+            li.innerHTML = `
+              <div>
+                <div class="text-sm font-medium">${f.userName || f.userId}</div>
+                <div class="text-xs text-zinc-400">${f.userId}</div>
+              </div>
+              <div class="flex gap-2">
+                <button class="px-3 py-1 rounded bg-emerald-700 text-white text-sm"
+                        data-peer="${f.userId}">DM</button>
+              </div>
+            `;
+            li.querySelector('button').onclick = () => startDm(f.userId);
+            listEl.appendChild(li);
+          }
+        } catch (e) {
+          listEl.innerHTML = `<li class="p-3 text-red-400">목록을 불러오지 못했습니다: ${e.message}</li>`;
+        }
+      }
+
+      async function addFriend() {
+        const id = friendIdEl.value.trim();
+        if (!id) { msgEl.textContent = '친구 ID를 입력해 주세요.'; return; }
+        msgEl.textContent = '추가 중...';
+        try {
+          const res = await Auth.authFetch('/api/friends', {
+            method: 'POST',
+            body: JSON.stringify({ friendId: id })
+          });
+          if (!res.ok && res.status !== 204) throw new Error(await res.text());
+          msgEl.textContent = '친구로 추가되었습니다.';
+          friendIdEl.value = '';
+          await loadFriends();
+        } catch (e) {
+          msgEl.textContent = `추가 실패: ${e.message}`;
+        }
+      }
+
+      async function startDm(peerId) {
+        try {
+          const res = await Auth.authFetch('/api/rooms/dm', {
+            method: 'POST',
+            body: JSON.stringify({ peerId })
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const room = await res.json(); // {id, type:"DIRECT", members:[...]}
+          location.href = `/chat/${room.id}`;
+        } catch (e) {
+          alert('DM 시작 실패: ' + e.message);
+        }
+      }
+
+      addBtn.onclick = addFriend;
+      dmBtn.onclick = () => {
+        const id = friendIdEl.value.trim();
+        if (!id) return (msgEl.textContent = '친구 ID를 입력해 주세요.');
+        startDm(id);
+      };
+      reloadBtn.onclick = loadFriends;
+
+      friendIdEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter') addFriend();
+      });
+
+      await loadFriends();
+    });
+</script>
+</body>
+</html>

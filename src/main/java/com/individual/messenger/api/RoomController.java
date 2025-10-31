@@ -37,4 +37,32 @@ public class RoomController {
         List<Room> rooms = roomService.findRoomsByMember(loginId);
         return ResponseEntity.ok(rooms);
     }
+
+    /** ✅ DM 생성/재사용 */
+    @PostMapping("/dm")
+    public ResponseEntity<Map<String, Object>> createDm(Authentication auth,
+                                                        @RequestBody Map<String, String> req) {
+        String me = auth.getName();
+        String peer = req.get("peerId");
+        Room room = roomService.createOrGetDirect(me, peer);
+        return ResponseEntity.ok(Map.of(
+                "id", room.id,
+                "type", room.type.name(),
+                "members", room.members
+        ));
+    }
+
+    /** ✅ 그룹방 생성 */
+    @PostMapping("/group")
+    public ResponseEntity<Map<String, Object>> createGroup(Authentication auth,
+                                                           @RequestBody Map<String, List<String>> req) {
+        String me = auth.getName();
+        List<String> members = req.get("members");
+        Room room = roomService.createGroup(me, members);
+        return ResponseEntity.ok(Map.of(
+                "id", room.id,
+                "type", room.type.name(),
+                "members", room.members
+        ));
+    }
 }
