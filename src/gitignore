@@ -1,0 +1,54 @@
+# =============================
+# Gradle
+# =============================
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!gradlew
+!gradlew.bat
+
+# =============================
+# IntelliJ / IDEA / VSCode
+# =============================
+.idea/
+*.iml
+.vscode/
+out/
+bin/
+
+# =============================
+# Logs / Temp / OS cache
+# =============================
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# =============================
+# Spring / Maven
+# =============================
+target/
+dependency-reduced-pom.xml
+
+# =============================
+# Node / React (프론트엔드 포함 시)
+# =============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+.env
+
+# =============================
+# 기타 (테스트 / 빌드산출물)
+# =============================
+*.class
+*.jar
+*.war
+*.ear
+*.db
+*.h2.db
+*.sqlite

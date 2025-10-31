@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>Messenger · DM (Dark)</title>
+    <link rel="icon" href="data:," />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <style>
+        html, body { height: 100%; margin: 0; }
+        #app { height: 100%; }
+    </style>
+</head>
+<body class="h-full bg-zinc-900 text-zinc-100">
+<div id="app"
+     th:data-room-id="${roomId}"
+     th:data-me="${me}"
+     th:data-ws="${wsBase}"
+     data-room-id="68eda88ed6451b8903b514a3"
+     data-me="LEE"
+     data-ws="/ws-stomp">
+    <div class="h-full grid place-items-center text-zinc-400">로딩 중… (React 마운트 전)</div>
+</div>
+
+<script>
+    // ===== Utils =====
+    function genId(){ return String(Date.now()) + '-' + Math.floor(Math.random()*1e9); }
+    function nowHHMM(){ return new Date().toTimeString().slice(0,5); }
+
+    // A tiny TTL set for de-dup (keeps last N keys for M ms)
+    function makeTTLSet(limit, ttlMs){
+      const map = new Map(); // key -> expiry
+      function prune(){
+        const t = Date.now();
+        for(const [k,exp] of map){ if(exp <= t) map.delete(k); }
+        // size bound
+        while(map.size > limit){ const first = map.keys().next().value; map.delete(first); }
+      }
+      return {
+        has(k){ prune(); return map.has(k); },
+        add(k){ prune(); map.set(k, Date.now()+ttlMs); },
+        size(){ prune(); return map.size; }
+      };
+    }
+
+    class ErrorBoundary extends React.Component {
+      constructor(p){ super(p); this.state = {hasError:false, error:null}; }
+      static getDerivedStateFromError(err){ return {hasError:true, error:err}; }
+      componentDidCatch(err, info){ console.error('UI Error:', err, info); }
+      render(){ if(this.state.hasError){ return React.createElement('div',{className:'p-4 text-red-300'},'렌더링 오류: '+(this.state.error&& (this.state.error.message||String(this.state.error)))); } return this.props.children; }
+    }
+
+    function Notice(props){
+      return React.createElement('div',{className:'flex-1 grid place-items-center p-8'},
+        React.createElement('div',{className:'max-w-xl w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-6'},[
+          React.createElement('div',{key:'t',className:'text-lg font-semibold mb-1'},props.title),
+          React.createElement('div',{key:'d',className:'text-sm text-zinc-400 whitespace-pre-wrap'},props.detail),
+          props.action?React.createElement('div',{key:'a'},props.action):null
+        ])
+      );
+    }
+
+    function DMApp(){
+      const rootEl = document.getElementById('app');
+      const roomId = (rootEl && rootEl.dataset && rootEl.dataset.roomId) ? rootEl.dataset.roomId : 'room1';
+      const me     = (rootEl && rootEl.dataset && rootEl.dataset.me) ? rootEl.dataset.me : 'ME';
+      const wsBase = (rootEl && rootEl.dataset && rootEl.dataset.ws) ? rootEl.dataset.ws : '/ws-stomp';
+
+      const useState = React.useState, useRef = React.useRef, useEffect = React.useEffect;
+      const [messages, setMessages]   = useState([]);
+      const [draft, setDraft]         = useState('');
+      const [connected, setConnected] = useState(false);
+      const [probe, setProbe]         = useState({ done:false, ok:false, status:null, error:null, body:null });
+      const scrollRef = useRef(null);
+
+      // 💡 de-dup state: per-tab clientId + recentlySeen keys
+      const clientId = React.useMemo(()=> genId(), []);
+      const seenRef  = useRef(makeTTLSet(200, 8000)); // keep last 200 keys for 8s
+      function msgKey(m){ return [m.sender||'', m.content||'', m.ts||''].join('|'); }
+
+      // probe /info
+      useEffect(function(){
+        var base = wsBase; if(base.charAt(base.length-1)==='/') base = base.slice(0,-1);
+        fetch(base + '/info', { method:'GET', credentials:'omit' })
+          .then(function(r){ return r.text().then(function(text){ setProbe({ done:true, ok:r.ok, status:r.status, error:null, body:text }); }); })
+          .catch(function(e){ setProbe({ done:true, ok:false, status:null, error:String(e), body:null }); });
+      }, [wsBase]);
+
+      // connect if ok
+      useEffect(function(){
+        if(!probe.done || !probe.ok) return;
+        var sock = new SockJS(wsBase);
+        var client = Stomp.over(sock);
+        client.debug = null;
+        client.connect({}, function(){
+          setConnected(true);
+          client.subscribe('/sub/rooms/' + roomId, function(msg){
+            try{
+              var data = JSON.parse(msg.body) || {};
+              // server echo dedupe: if server forwards our own message (by clientId/localId) or same content within TTL, skip
+              if (data.clientId && data.clientId === clientId) return; // same tab echo
+              var inbound = { id: genId(), sender: data.sender||'unknown', content: data.content||'', ts: nowHHMM() };
+              var k = msgKey(inbound);
+              if (seenRef.current.has(k)) return; // duplicate within TTL
+              seenRef.current.add(k);
+              setMessages(function(prev){ return prev.concat([inbound]); });
+            }catch(e){ console.error('Bad payload', e); }
+          });
+        }, function(err){ console.error('STOMP error', err); setConnected(false); });
+        return function(){ try{ client.disconnect(function(){});}catch(_){} };
+      }, [probe.done, probe.ok, roomId, wsBase]);
+
+      // autoscroll
+      useEffect(function(){ if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
+
+      function handleSend(){
+        var text = (draft||'').trim();
+        if(!text) return;
+        var optimistic = { id: genId(), sender: me, content: text, ts: nowHHMM(), clientId: clientId };
+        // add to seen first to avoid echo duplication
+        seenRef.current.add(msgKey(optimistic));
+        setMessages(function(prev){ return prev.concat([optimistic]); });
+        setDraft('');
+        try{
+          var sock = new SockJS(wsBase);
+          var client = Stomp.over(sock);
+          client.debug = null;
+          client.connect({}, function(){
+            client.send('/pub/messages.send', {}, JSON.stringify({ roomId: roomId, sender: me, content: text, clientId: clientId, localId: optimistic.id }));
+            try{ client.disconnect(function(){});}catch(_){}
+          });
+        }catch(e){ console.error(e); }
+      }
+
+      if (probe.done && !probe.ok){
+        var reason = '';
+        if (probe.status === 403)      reason = '서버가 요청을 거부했습니다 (403 Forbidden). 보안(CORS/CSRF/시큐리티) 또는 프록시 설정 문제일 수 있습니다.';
+        else if (probe.status === 404) reason = wsBase + ' 경로가 맞는지 확인하세요. (컨텍스트패스/프록시 경로)';
+        else if (probe.error)          reason = '네트워크 오류: ' + probe.error;
+        else                           reason = 'HTTP 상태: ' + probe.status;
+        return React.createElement('div',{className:'flex flex-col h-screen'},[
+          React.createElement('header',{key:'h',className:'h-12 border-b border-zinc-800 flex items-center px-3 bg-zinc-950'},
+            React.createElement('div',{className:'text-sm font-semibold'},'Room: '+roomId)
+          ),
+          React.createElement(Notice,{key:'n',title:'연결 실패',detail:'사유: '+reason+'\n\n'+
+            '확인하세요:\n'+
+            '1) Spring Security에서 /ws-stomp/**, OPTIONS 메서드 허용 여부\n'+
+            '2) WebSocket 설정: addEndpoint("/ws-stomp").setAllowedOriginPatterns("*").withSockJS()\n'+
+            '3) 프록시(Nginx 등): /ws-stomp 업그레이드/프록시 패스 설정\n'+
+            '4) 컨텍스트패스가 있다면 data-ws로 올바른 경로 전달(ex: /myapp/ws-stomp)',
+            action: React.createElement('div',{className:'mt-4 text-xs text-zinc-400'},['현재 wsBase: ',React.createElement('span',{className:'font-mono',key:'w'},wsBase)])
+          })
+        ]);
+      }
+
+      return React.createElement('div',{className:'flex flex-col h-screen bg-zinc-900 text-zinc-100'},[
+        React.createElement('header',{key:'h',className:'h-12 border-b border-zinc-800 flex items-center justify-between px-3 bg-zinc-950'},[
+          React.createElement('div',{key:'l',className:'text-sm font-semibold'},'Room: '+roomId),
+          React.createElement('div',{key:'r',className:'text-xs text-zinc-400'}, connected ? '연결됨' : '연결 대기')
+        ]),
+        React.createElement('main',{key:'m',ref:scrollRef,className:'flex-1 overflow-y-auto px-4 py-4'},
+          messages.map(function(m){
+            var mine = m.sender === me;
+            return React.createElement('div',{key:m.id,className:'flex '+(mine?'justify-end':'justify-start')+' mb-2'},
+              React.createElement('div',{className:'max-w-[70%] px-3 py-2 rounded-2xl '+(mine?'bg-emerald-700 text-white':'bg-zinc-800 text-zinc-100')},[
+                React.createElement('div',{key:'c',className:'text-sm'},m.content),
+                React.createElement('div',{key:'t',className:'text-[10px] text-zinc-400 mt-1'},m.ts)
+              ])
+            );
+          })
+        ),
+        React.createElement('footer',{key:'f',className:'border-t border-zinc-800 p-3 bg-zinc-950'},
+          React.createElement('div',{className:'flex gap-2 items-end'},[
+            React.createElement('textarea',{
+              key:'ta',value:draft,onChange:function(e){ setDraft(e.target.value); },
+              onKeyDown:function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); } },
+              placeholder:'메시지를 입력하세요...',className:'flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 text-sm resize-none outline-none'
+            }),
+            React.createElement('button',{key:'btn',onClick:handleSend,className:'bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg'},'보내기')
+          ])
+        )
+      ]);
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      var container = document.getElementById('app');
+      if(!container){ console.error('❌ #app 컨테이너가 없습니다'); return; }
+      var root = ReactDOM.createRoot(container);
+      root.render( React.createElement(ErrorBoundary,null, React.createElement(DMApp,null) ) );
+    });
+
+    console.assert(typeof React !== 'undefined', 'React 로드 실패');
+    console.assert(typeof ReactDOM !== 'undefined', 'ReactDOM 로드 실패');
+    console.assert(typeof SockJS !== 'undefined', 'SockJS 로드 실패');
+    console.assert(typeof Stomp !== 'undefined', 'Stomp 로드 실패');
+</script>
+</body>
+</html>
