@@ -10,7 +10,7 @@ public final class Aes256 {
     private final IvParameterSpec iv;
 
     public Aes256(String key32, String iv16) {
-        // key32: 32바이트(예: 32-length ASCII), iv16: 16바이트
+        // key32: 32바이???? 32-length ASCII), iv16: 16바이??
         this.key = new SecretKeySpec(key32.getBytes(), "AES");
         this.iv  = new IvParameterSpec(iv16.getBytes());
     }

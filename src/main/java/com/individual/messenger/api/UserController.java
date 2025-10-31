@@ -22,7 +22,7 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication auth) {
-        // JwtAuthFilter가 principal(username=loginId)을 세팅해줌
+        // JwtAuthFilter가 principal(username=loginId)???�팅?�줌
         String loginId = auth.getName();
         User u = userRepo.findByLoginId(loginId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

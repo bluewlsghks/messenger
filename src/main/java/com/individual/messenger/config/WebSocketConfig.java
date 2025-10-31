@@ -16,7 +16,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // ✅ JWT 기반 접속 허용 (CORS 허용)
+        // ??JWT 기반 ?�속 ?�용 (CORS ?�용)
         registry.addEndpoint("/ws-stomp")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();

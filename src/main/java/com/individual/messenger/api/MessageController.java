@@ -19,7 +19,7 @@ public class MessageController {
     private final MessageService messageService;
     public MessageController(MessageService messageService) { this.messageService = messageService; }
 
-    /** ✅ 메시지 저장(POST)은 하나만: JWT 인증 정보 사용 */
+    /** ??메시지 ?�??POST)?� ?�나�? JWT ?�증 ?�보 ?�용 */
     @PostMapping
     public ResponseEntity<Message> post(
             Authentication auth,
@@ -28,16 +28,16 @@ public class MessageController {
         String roomId = body.get("roomId");
         String content = body.get("content");
 
-        // 기본적으로 JWT의 subject를 senderId로 사용
+        // 기본?�으�?JWT??subject�?senderId�??�용
         String senderId = (auth != null) ? auth.getName() : body.getOrDefault("senderId", "anonymous");
-        // 표시명은 요청에 들어오면 사용, 없으면 senderId
+        // ?�시명�? ?�청???�어?�면 ?�용, ?�으�?senderId
         String senderName = body.getOrDefault("senderName", senderId);
 
         Message saved = messageService.save(roomId, senderId, senderName, content);
         return ResponseEntity.ok(saved);
     }
 
-    /** ✅ 페이징 목록: GET /api/messages?roomId=...&page=0&size=20 */
+    /** ???�이�?목록: GET /api/messages?roomId=...&page=0&size=20 */
     @GetMapping
     public ResponseEntity<Map<String, Object>> list(
             @RequestParam String roomId,
@@ -53,7 +53,7 @@ public class MessageController {
         ));
     }
 
-    /** ✅ 히스토리: GET /api/messages/{roomId}?before=ISO&limit=50 */
+    /** ???�스?�리: GET /api/messages/{roomId}?before=ISO&limit=50 */
     @GetMapping("/{roomId}")
     public ResponseEntity<List<Message>> history(
             @PathVariable String roomId,

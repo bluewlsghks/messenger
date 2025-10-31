@@ -22,10 +22,10 @@ public class Room {
 
     public Room() {}
 
-    /** ✅ 방 유형 정의 */
+    /** ??�??�형 ?�의 */
     public enum Type {
-        DIRECT,   // 1:1 대화
-        GROUP     // 그룹 대화
+        DIRECT,   // 1:1 ?�??
+        GROUP     // 그룹 ?�??
     }
 
     public static Room directOf(String a, String b) {

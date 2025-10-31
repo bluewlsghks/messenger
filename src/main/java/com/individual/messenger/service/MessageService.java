@@ -49,7 +49,7 @@ public class MessageService {
     }
 
     /**
-     * 최신 순으로 가져온 뒤 UI 편의를 위해 오름차순(과거→최신)으로 뒤집어 반환
+     * 최신 ?�으�?가?�온 ??UI ?�의�??�해 ?�름차순(과거?�최???�로 ?�집??반환
      */
     public List<Message> history(String roomId, Instant before, int limit) {
         if (limit <= 0) limit = 50;
@@ -62,11 +62,11 @@ public class MessageService {
             desc = messageRepo.findByRoomIdOrderByCreatedAtDesc(roomId, pageable);
         }
 
-        Collections.reverse(desc); // UI에서 위→아래로 자연스럽게 보이도록
+        Collections.reverse(desc); // UI?�서 ?�→?�래�??�연?�럽�?보이?�록
         return desc;
     }
 
-    /** ✅ 읽음 처리: 나( readerId )가 roomId의 messageIds들을 읽음으로 표시 */
+    /** ???�음 처리: ?? readerId )가 roomId??messageIds?�을 ?�음?�로 ?�시 */
     @Transactional
     public void markRead(String roomId, List<String> messageIds, String readerId) {
         if (messageIds == null || messageIds.isEmpty()) return;
@@ -74,13 +74,13 @@ public class MessageService {
         Query q = new Query(new Criteria().andOperator(
                 Criteria.where("id").in(messageIds),
                 Criteria.where("roomId").is(roomId),
-                // 내 메시지는 굳이 readBy에 넣지 않음 (원하면 제거)
+                // ??메시지??굳이 readBy???��? ?�음 (?�하�??�거)
                 Criteria.where("senderId").ne(readerId)
         ));
         Update u = new Update().addToSet("readBy", readerId);
         mongoTemplate.updateMulti(q, u, Message.class);
 
-        // 읽음 이벤트 브로드캐스트 → 참여자들의 UI 갱신
+        // ?�음 ?�벤??브로?�캐?�트 ??참여?�들??UI 갱신
         messagingTemplate.convertAndSend("/sub/chat/" + roomId + "/read", Map.of(
                 "messageIds", messageIds,
                 "readerId", readerId

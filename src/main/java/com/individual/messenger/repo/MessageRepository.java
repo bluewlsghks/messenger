@@ -12,12 +12,12 @@ import org.springframework.data.mongodb.repository.Query;
 public interface MessageRepository extends MongoRepository<Message, String> {
     Page<Message> findByRoomId(String roomId, Pageable pageable);
 
-    // 최신 히스토리 페이징 조회 (무한 스크롤: before 기준)
+    // 최신 ?�스?�리 ?�이�?조회 (무한 ?�크�? before 기�?)
     List<Message> findByRoomIdAndCreatedAtLessThanOrderByCreatedAtDesc(
             String roomId, Instant before, Pageable pageable
     );
 
-    // 첫 페이지용(최신 limit개)
+    // �??�이지??최신 limit�?
     List<Message> findByRoomIdOrderByCreatedAtDesc(String roomId, Pageable pageable);
 
     @Query(value = "{ 'roomId': ?0, 'createdAt': { $lt: ?1 } }", sort = "{ 'createdAt': -1 }", fields = "{}")

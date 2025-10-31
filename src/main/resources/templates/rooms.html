@@ -2,21 +2,21 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>대화방 목록</title>
+    <title>?�?�방 목록</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="data:," /> <!-- favicon 요청 차단 -->
-    <!-- ✅ 공통 Auth JS 불러오기 -->
+    <link rel="icon" href="data:," /> <!-- favicon ?�청 차단 -->
+    <!-- ??공통 Auth JS 불러?�기 -->
     <script src="/js/auth.js" defer></script>
 </head>
 
 <body class="bg-zinc-900 text-zinc-100 h-screen flex flex-col">
 <header class="bg-zinc-950 border-b border-zinc-800 p-4 flex justify-between items-center">
-    <h1 class="text-lg font-semibold">내 대화방</h1>
-    <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400">로그아웃</button>
+    <h1 class="text-lg font-semibold">???�?�방</h1>
+    <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400">로그?�웃</button>
 </header>
 
 <main id="roomList" class="flex-1 overflow-y-auto p-4 space-y-3">
-    <p class="text-zinc-400 text-sm text-center">불러오는 중...</p>
+    <p class="text-zinc-400 text-sm text-center">불러?�는 �?..</p>
 </main>
 
 <footer class="border-t border-zinc-800 p-3 bg-zinc-950 text-center text-sm text-zinc-500">
@@ -25,10 +25,10 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      // ✅ 로그인 필수
+      // ??로그???�수
       if (!Auth.requireLogin()) return;
 
-        // ✅ 로그아웃 버튼 이벤트 연결
+        // ??로그?�웃 버튼 ?�벤???�결
         Auth.attachLogoutButton("logoutBtn");
 
         const token = Auth.getToken();
@@ -41,13 +41,13 @@
         });
 
         if (!res.ok) {
-          listEl.innerHTML = "<p class='text-red-400 text-center mt-8'>방 목록을 불러오지 못했습니다.</p>";
+          listEl.innerHTML = "<p class='text-red-400 text-center mt-8'>�?목록??불러?��? 못했?�니??</p>";
           return;
         }
 
         const rooms = await res.json();
         if (rooms.length === 0) {
-          listEl.innerHTML = "<p class='text-zinc-400 text-center mt-8'>참여 중인 대화방이 없습니다.</p>";
+          listEl.innerHTML = "<p class='text-zinc-400 text-center mt-8'>참여 중인 ?�?�방???�습?�다.</p>";
           return;
         }
 
@@ -61,7 +61,7 @@
         });
       } catch (err) {
         console.error(err);
-        listEl.innerHTML = "<p class='text-red-400 text-center mt-8'>서버 오류가 발생했습니다.</p>";
+        listEl.innerHTML = "<p class='text-red-400 text-center mt-8'>?�버 ?�류가 발생?�습?�다.</p>";
       }
     });
 </script>

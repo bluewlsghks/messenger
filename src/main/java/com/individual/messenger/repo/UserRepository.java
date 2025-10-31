@@ -9,11 +9,11 @@ import java.util.Optional;
 public interface UserRepository extends MongoRepository<User, String> {
     boolean existsByLoginId(String loginId);
 
-    // 레거시 문서까지 포괄하려면:
+    // ?�거??문서까�? ?�괄?�려�?
     Optional<User> findByLoginId(String loginId);
     Optional<User> findByLegacyId(String legacyId);
 
-    // 편의용
+    // ?�의??
     default Optional<User> findByAnyId(String anyId) {
         return findByLoginId(anyId).or(() -> findByLegacyId(anyId));
     }

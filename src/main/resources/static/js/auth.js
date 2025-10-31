@@ -70,16 +70,16 @@
     return true;
   }
 
-  // ✅ 전역 노출 (+ 호환용 별칭 추가)
+  // ???�역 ?�출 (+ ?�환??별칭 추�?)
   window.Auth = {
-    // 원래 메서드
+    // ?�래 메서??
     getToken, getLoginId, getUserName,
     setAuth, clearAuthStorage,
     authFetch,
     setStompClient, getStompClient, disconnectStomp,
     logout, attachLogoutButton, requireLogin,
 
-    // ✅ 별칭(rooms.html 등 기존 사용 코드 호환)
+    // ??별칭(rooms.html ??기존 ?�용 코드 ?�환)
     token: getToken,
     loginId: getLoginId,
     userName: getUserName,
@@ -87,6 +87,6 @@
     fetch: authFetch
   };
 
-  // 선택: 로드 확인용
-  // console.assert(typeof window.Auth !== "undefined", "Auth 로드 실패");
+  // ?�택: 로드 ?�인??
+  // console.assert(typeof window.Auth !== "undefined", "Auth 로드 ?�패");
 })();

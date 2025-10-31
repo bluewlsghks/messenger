@@ -19,20 +19,20 @@ import org.springframework.web.cors.*;
 import java.util.List;
 
 @Configuration
-@EnableMethodSecurity // (기존 EnableGlobalMethodSecurity 대체)
+@EnableMethodSecurity // (기존 EnableGlobalMethodSecurity ?��?
 public class SecurityConfig {
 
-    // JWT 필터가 있다면 주입
-    private final JwtAuthFilter jwtFilter; // 없다면 이 필드/생성자/등록 라인 제거
+    // JWT ?�터가 ?�다�?주입
+    private final JwtAuthFilter jwtFilter; // ?�다�????�드/?�성???�록 ?�인 ?�거
     public SecurityConfig(JwtAuthFilter jwtFilter) { this.jwtFilter = jwtFilter; }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 세션 상태 없음(JWT)
+                // ?�션 ?�태 ?�음(JWT)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // CSRF: 폼이 아닌 fetch JSON 이므로 인증 API는 제외
+                // CSRF: ?�이 ?�닌 fetch JSON ?��?�??�증 API???�외
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         new AntPathRequestMatcher("/ws-stomp/**"),
                         new AntPathRequestMatcher("/api/auth/**")
@@ -41,36 +41,36 @@ public class SecurityConfig {
                 // CORS
                 .cors(Customizer.withDefaults())
 
-                // 경로별 권한
+                // 경로�?권한
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // ✅ 정적 리소스 URL 허용
+                        // ???�적 리소??URL ?�용
                         .requestMatchers("/js/**", "/css/**", "/images/**", "/webjars/**", "/favicon.ico").permitAll()
 
-                        // ✅ 뷰 페이지 허용
+                        // ??�??�이지 ?�용
                         .requestMatchers("/", "/rooms", "/chat/**", "/login", "/register", "/ws-stomp/**").permitAll()
 
-                        // ✅ 인증 API 허용
+                        // ???�증 API ?�용
                         .requestMatchers("/api/auth/**").permitAll()
 
-                        // ✅ 보호할 API
+                        // ??보호??API
                         .requestMatchers("/api/rooms/**", "/api/messages/**").authenticated()
 
                         .anyRequest().authenticated()
                 )
 
-                // 폼/기본 인증 비활성화
+                // ??기본 ?�증 비활?�화
                 .httpBasic(b -> b.disable())
                 .formLogin(b -> b.disable());
 
-        // JWT 필터가 있다면 체인에 등록 (없으면 이 줄 제거)
+        // JWT ?�터가 ?�다�?체인???�록 (?�으�???�??�거)
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // CORS 설정
+    // CORS ?�정
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
@@ -83,13 +83,13 @@ public class SecurityConfig {
         return src;
     }
 
-    // 비밀번호 인코더
+    // 비�?번호 ?�코??
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // (필요 시) AuthenticationManager 주입이 필요한 경우
+    // (?�요 ?? AuthenticationManager 주입???�요??경우
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();

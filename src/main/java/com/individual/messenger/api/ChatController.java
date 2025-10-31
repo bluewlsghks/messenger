@@ -21,9 +21,9 @@ public class ChatController {
     }
 
     /**
-     * 클라이언트에서 /pub/chat.send 로 발행
+     * ?�라?�언?�에??/pub/chat.send �?발행
      * payload: { roomId, senderId, senderName, content }
-     * - 실제 운영에선 STOMP 연결 시 JWT를 검증해 senderId를 서버에서 신뢰성 있게 결정하는 걸 권장
+     * - ?�제 ?�영?�선 STOMP ?�결 ??JWT�?검증해 senderId�??�버?�서 ?�뢰???�게 결정?�는 �?권장
      */
     @MessageMapping("/chat.send")
     public void onSend(@Payload Map<String, String> payload) {
@@ -32,10 +32,10 @@ public class ChatController {
         String senderName = payload.getOrDefault("senderName", senderId);
         String content = payload.getOrDefault("content", "");
 
-        // 1) DB 저장
+        // 1) DB ?�??
         Message saved = messageService.save(roomId, senderId, senderName, content);
 
-        // 2) 구독자에게 전송
+        // 2) 구독?�에�??�송
         messaging.convertAndSend("/sub/chat/" + roomId, saved);
     }
 }

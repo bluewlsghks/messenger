@@ -16,7 +16,7 @@ public class RoomController {
     private final RoomService roomService;
     public RoomController(RoomService roomService) { this.roomService = roomService; }
 
-    /** ✅ 방 생성 */
+    /** ??�??�성 */
     @PostMapping
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> req) {
         String type = (String) req.getOrDefault("type", "DIRECT");
@@ -30,10 +30,10 @@ public class RoomController {
         ));
     }
 
-    /** ✅ 내가 속한 방 목록 */
+    /** ???��? ?�한 �?목록 */
     @GetMapping("/my")
     public ResponseEntity<List<Room>> myRooms(Authentication auth) {
-        String loginId = auth.getName(); // JWT 인증된 사용자
+        String loginId = auth.getName(); // JWT ?�증???�용??
         List<Room> rooms = roomService.findRoomsByMember(loginId);
         return ResponseEntity.ok(rooms);
     }
