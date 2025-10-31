@@ -1,4 +1,4 @@
-package com.individual.messenger.api;
+﻿package com.individual.messenger.api;
 
 import com.individual.messenger.domain.ReadCursor;
 import com.individual.messenger.domain.Room;
@@ -36,4 +36,5 @@ public class DmController {
         return ResponseEntity.ok(messageService.send(roomId, me, content));
     }
 }
+
 

@@ -1,4 +1,4 @@
-package com.individual.messenger.domain;
+﻿package com.individual.messenger.domain;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -18,4 +18,5 @@ public class ReadCursor {
         this.roomId = roomId; this.username = username;
     }
 }
+
 

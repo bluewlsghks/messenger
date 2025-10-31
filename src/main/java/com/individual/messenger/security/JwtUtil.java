@@ -1,4 +1,4 @@
-package com.individual.messenger.security;
+﻿package com.individual.messenger.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -38,4 +38,5 @@ public class JwtUtil {
                 .parseClaimsJws(token).getBody().getSubject();
     }
 }
+
 

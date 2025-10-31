@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+﻿import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("org.springframework.boot") version "3.3.3"
@@ -34,4 +34,5 @@ dependencies {
 }
 
 tasks.withType<Test> { useJUnitPlatform() }
+
 

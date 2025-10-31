@@ -1,4 +1,4 @@
-package com.individual.messenger.domain;
+﻿package com.individual.messenger.domain;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -22,10 +22,10 @@ public class Room {
 
     public Room() {}
 
-    /** ??�??�형 ?�의 */
+    /** ??諛??좏삎 ?뺤쓽 */
     public enum Type {
-        DIRECT,   // 1:1 ?�??
-        GROUP     // 그룹 ?�??
+        DIRECT,   // 1:1 ???
+        GROUP     // 洹몃９ ???
     }
 
     public static Room directOf(String a, String b) {
@@ -38,4 +38,5 @@ public class Room {
         return r;
     }
 }
+
 

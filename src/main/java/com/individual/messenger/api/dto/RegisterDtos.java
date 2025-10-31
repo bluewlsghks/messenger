@@ -1,4 +1,4 @@
-package com.individual.messenger.api.dto;
+﻿package com.individual.messenger.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -17,4 +17,5 @@ public class RegisterDtos {
         public RegisterResponse(String id, String userName) { this.id = id; this.userName = userName; }
     }
 }
+
 

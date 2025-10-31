@@ -1,4 +1,4 @@
-package com.individual.messenger.api;
+﻿package com.individual.messenger.api;
 
 import com.individual.messenger.crypto.CryptoService;
 import com.individual.messenger.domain.User;
@@ -22,7 +22,7 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication auth) {
-        // JwtAuthFilter가 principal(username=loginId)???�팅?�줌
+        // JwtAuthFilter媛 principal(username=loginId)???명똿?댁쨲
         String loginId = auth.getName();
         User u = userRepo.findByLoginId(loginId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -38,4 +38,5 @@ public class UserController {
         ));
     }
 }
+
 

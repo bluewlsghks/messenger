@@ -1,4 +1,4 @@
-package com.individual.messenger.crypto;
+﻿package com.individual.messenger.crypto;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -10,7 +10,7 @@ public final class Aes256 {
     private final IvParameterSpec iv;
 
     public Aes256(String key32, String iv16) {
-        // key32: 32바이???? 32-length ASCII), iv16: 16바이??
+        // key32: 32諛붿씠???? 32-length ASCII), iv16: 16諛붿씠??
         this.key = new SecretKeySpec(key32.getBytes(), "AES");
         this.iv  = new IvParameterSpec(iv16.getBytes());
     }
@@ -35,4 +35,5 @@ public final class Aes256 {
         }
     }
 }
+
 

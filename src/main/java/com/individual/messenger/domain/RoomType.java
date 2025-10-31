@@ -1,4 +1,5 @@
-package com.individual.messenger.domain;
+﻿package com.individual.messenger.domain;
 
 public enum RoomType { DIRECT, GROUP }
+
 

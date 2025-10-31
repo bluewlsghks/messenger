@@ -1,4 +1,4 @@
-package com.individual.messenger.rt;
+﻿package com.individual.messenger.rt;
 
 import com.individual.messenger.domain.Message;
 import com.individual.messenger.service.MessageService;
@@ -22,4 +22,5 @@ public class MessageSocketController {
         messageService.send(roomId, sender, content);
     }
 }
+
 

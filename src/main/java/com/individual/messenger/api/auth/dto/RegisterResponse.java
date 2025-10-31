@@ -1,4 +1,4 @@
-package com.individual.messenger.api.auth.dto;
+﻿package com.individual.messenger.api.auth.dto;
 
 import java.time.Instant;
 
@@ -13,4 +13,5 @@ public class RegisterResponse {
     }
     // getter
 }
+
 

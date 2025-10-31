@@ -1,4 +1,4 @@
-package com.individual.messenger.service;
+﻿package com.individual.messenger.service;
 
 import com.individual.messenger.domain.ReadCursor;
 import com.individual.messenger.domain.Room;
@@ -40,4 +40,5 @@ public class DmService {
         return cursorRepo.save(cur);
     }
 }
+
 

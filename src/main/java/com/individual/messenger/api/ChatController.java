@@ -1,4 +1,4 @@
-package com.individual.messenger.api;
+﻿package com.individual.messenger.api;
 
 import com.individual.messenger.domain.Message;
 import com.individual.messenger.service.MessageService;
@@ -21,9 +21,9 @@ public class ChatController {
     }
 
     /**
-     * ?�라?�언?�에??/pub/chat.send �?발행
+     * ?대씪?댁뼵?몄뿉??/pub/chat.send 濡?諛쒗뻾
      * payload: { roomId, senderId, senderName, content }
-     * - ?�제 ?�영?�선 STOMP ?�결 ??JWT�?검증해 senderId�??�버?�서 ?�뢰???�게 결정?�는 �?권장
+     * - ?ㅼ젣 ?댁쁺?먯꽑 STOMP ?곌껐 ??JWT瑜?寃利앺빐 senderId瑜??쒕쾭?먯꽌 ?좊ː???덇쾶 寃곗젙?섎뒗 嫄?沅뚯옣
      */
     @MessageMapping("/chat.send")
     public void onSend(@Payload Map<String, String> payload) {
@@ -32,11 +32,12 @@ public class ChatController {
         String senderName = payload.getOrDefault("senderName", senderId);
         String content = payload.getOrDefault("content", "");
 
-        // 1) DB ?�??
+        // 1) DB ???
         Message saved = messageService.save(roomId, senderId, senderName, content);
 
-        // 2) 구독?�에�??�송
+        // 2) 援щ룆?먯뿉寃??꾩넚
         messaging.convertAndSend("/sub/chat/" + roomId, saved);
     }
 }
+
 

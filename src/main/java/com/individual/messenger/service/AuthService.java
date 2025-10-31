@@ -1,4 +1,4 @@
-package com.individual.messenger.service;
+﻿package com.individual.messenger.service;
 
 import com.individual.messenger.api.dto.RegisterDtos.RegisterRequest;
 import com.individual.messenger.api.dto.RegisterDtos.RegisterResponse;
@@ -23,7 +23,7 @@ public class AuthService {
     private final UserRepository userRepo;
     private final CryptoService crypto;
     private final JwtUtil jwt;
-    private final PasswordEncoder passwordEncoder; // ??DI�?주입
+    private final PasswordEncoder passwordEncoder; // ??DI濡?二쇱엯
     private final BCryptPasswordEncoder bCrypt = new BCryptPasswordEncoder();
 
 
@@ -36,19 +36,19 @@ public class AuthService {
 
     @Transactional
     public RegisterResponse register(RegisterRequest req) {
-        // ???�력�??�규??
+        // ???낅젰媛??뺢퇋??
         final String loginId = req.id == null ? "" : req.id.trim();
         final String userName = req.userName == null ? "" : req.userName.trim();
         final String rawPw = req.password == null ? "" : req.password;
         final String phone = req.phoneNumber == null ? "" : req.phoneNumber.trim();
 
         if (loginId.isEmpty() || userName.isEmpty() || rawPw.isEmpty() || phone.isEmpty()) {
-            throw new IllegalArgumentException("?�수 ?�력???�락?�었?�니??");
+            throw new IllegalArgumentException("?꾩닔 ?낅젰???꾨씫?섏뿀?듬땲??");
         }
 
-        // ???�전 중복 체크(참고: 경쟁 조건?� ?�래 DuplicateKeyException?�로 ??�???막음)
+        // ???ъ쟾 以묐났 泥댄겕(李멸퀬: 寃쎌웳 議곌굔? ?꾨옒 DuplicateKeyException?쇰줈 ??踰???留됱쓬)
         if (userRepo.existsByLoginId(loginId)) {
-            throw new IllegalArgumentException("?��? 존재?�는 ID ?�니??");
+            throw new IllegalArgumentException("?대? 議댁옱?섎뒗 ID ?낅땲??");
         }
 
         User u = new User();
@@ -62,8 +62,8 @@ public class AuthService {
         try {
             userRepo.save(u);
         } catch (DuplicateKeyException e) {
-            // ???�덱??기반 경쟁 조건 방�?
-            throw new IllegalArgumentException("?��? 존재?�는 ID ?�니??");
+            // ???몃뜳??湲곕컲 寃쎌웳 議곌굔 諛⑹?
+            throw new IllegalArgumentException("?대? 議댁옱?섎뒗 ID ?낅땲??");
         }
 
         return new RegisterResponse(u.loginId, u.userName);
@@ -73,14 +73,14 @@ public class AuthService {
         final String id = req.id == null ? "" : req.id.trim();
         final String rawPw = req.password == null ? "" : req.password;
 
-        // ???�거??문서까�? 찾고 ?�다�?findByAnyId ?��?, ?�니�?findByLoginId 권장
+        // ???덇굅??臾몄꽌源뚯? 李얘퀬 ?띕떎硫?findByAnyId ?좎?, ?꾨땲硫?findByLoginId 沅뚯옣
         User u = userRepo.findByAnyId(id)
-                .orElseThrow(() -> new IllegalArgumentException("?�못???�격 증명?�니??"));
+                .orElseThrow(() -> new IllegalArgumentException("?섎せ???먭꺽 利앸챸?낅땲??"));
 
-        // ???�거????최초 로그??마이그레?�션 (?�전??강화)
+        // ???덇굅????理쒖큹 濡쒓렇??留덉씠洹몃젅?댁뀡 (?덉쟾??媛뺥솕)
         if ((u.passwordHash == null || u.passwordHash.isBlank()) && u.legacyPassword != null) {
             if (!rawPw.equals(u.legacyPassword)) {
-                throw new IllegalArgumentException("?�못???�격 증명?�니??");
+                throw new IllegalArgumentException("?섎せ???먭꺽 利앸챸?낅땲??");
             }
             u.passwordHash = passwordEncoder.encode(u.legacyPassword);
             u.legacyPassword = null;
@@ -90,31 +90,32 @@ public class AuthService {
             }
             if ((u.phoneEnc == null || u.phoneEnc.isBlank()) && u.legacyPhoneNumber != null) {
                 u.phoneEnc = crypto.encryptString(u.legacyPhoneNumber);
-                // ?�요 ???�문 ?�거:
+                // ?꾩슂 ???먮Ц ?쒓굅:
                 // u.setLegacyPhoneNumber(null);
             }
             userRepo.save(u);
         }
 
         if (u.passwordHash == null || !passwordEncoder.matches(rawPw, u.passwordHash)) {
-            throw new IllegalArgumentException("?�못???�격 증명?�니??");
+            throw new IllegalArgumentException("?섎せ???먭꺽 利앸챸?낅땲??");
         }
 
         String token = jwt.createToken(u.loginId, Map.of("name", u.userName));
         return new LoginResponse(token, u.loginId, u.userName);
     }
 
-    // ?�요 ???��??�서 ?�포 ?�근
+    // ?꾩슂 ???몃??먯꽌 ?덊룷 ?묎렐
     public UserRepository userRepo() { return userRepo; }
 
     public String newAccessToken(String loginId, String userName) {
         return jwt.createToken(loginId, Map.of("name", userName));
     }
 
-    // AuthService ?�에 추�?
+    // AuthService ?덉뿉 異붽?
     public java.util.Optional<com.individual.messenger.domain.User> getByLoginId(String loginId) {
         return userRepo.findByLoginId(loginId);
     }
 
 }
+
 

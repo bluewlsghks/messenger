@@ -1,4 +1,4 @@
-package com.individual.messenger.api;
+﻿package com.individual.messenger.api;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -12,4 +12,5 @@ public class DevHashController {
         return bCrypt.encode(raw);
     }
 }
+
 

@@ -1,4 +1,4 @@
-package com.individual.messenger.service;
+﻿package com.individual.messenger.service;
 
 import com.individual.messenger.domain.Message;
 import com.individual.messenger.repo.MessageRepository;
@@ -49,7 +49,7 @@ public class MessageService {
     }
 
     /**
-     * 최신 ?�으�?가?�온 ??UI ?�의�??�해 ?�름차순(과거?�최???�로 ?�집??반환
+     * 理쒖떊 ?쒖쑝濡?媛?몄삩 ??UI ?몄쓽瑜??꾪빐 ?ㅻ쫫李⑥닚(怨쇨굅?믪턀???쇰줈 ?ㅼ쭛??諛섑솚
      */
     public List<Message> history(String roomId, Instant before, int limit) {
         if (limit <= 0) limit = 50;
@@ -62,11 +62,11 @@ public class MessageService {
             desc = messageRepo.findByRoomIdOrderByCreatedAtDesc(roomId, pageable);
         }
 
-        Collections.reverse(desc); // UI?�서 ?�→?�래�??�연?�럽�?보이?�록
+        Collections.reverse(desc); // UI?먯꽌 ?꾟넂?꾨옒濡??먯뿰?ㅻ읇寃?蹂댁씠?꾨줉
         return desc;
     }
 
-    /** ???�음 처리: ?? readerId )가 roomId??messageIds?�을 ?�음?�로 ?�시 */
+    /** ???쎌쓬 泥섎━: ?? readerId )媛 roomId??messageIds?ㅼ쓣 ?쎌쓬?쇰줈 ?쒖떆 */
     @Transactional
     public void markRead(String roomId, List<String> messageIds, String readerId) {
         if (messageIds == null || messageIds.isEmpty()) return;
@@ -74,17 +74,18 @@ public class MessageService {
         Query q = new Query(new Criteria().andOperator(
                 Criteria.where("id").in(messageIds),
                 Criteria.where("roomId").is(roomId),
-                // ??메시지??굳이 readBy???��? ?�음 (?�하�??�거)
+                // ??硫붿떆吏??援녹씠 readBy???ｌ? ?딆쓬 (?먰븯硫??쒓굅)
                 Criteria.where("senderId").ne(readerId)
         ));
         Update u = new Update().addToSet("readBy", readerId);
         mongoTemplate.updateMulti(q, u, Message.class);
 
-        // ?�음 ?�벤??브로?�캐?�트 ??참여?�들??UI 갱신
+        // ?쎌쓬 ?대깽??釉뚮줈?쒖틦?ㅽ듃 ??李몄뿬?먮뱾??UI 媛깆떊
         messagingTemplate.convertAndSend("/sub/chat/" + roomId + "/read", Map.of(
                 "messageIds", messageIds,
                 "readerId", readerId
         ));
     }
 }
+
 

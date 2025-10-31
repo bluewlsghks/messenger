@@ -1,4 +1,4 @@
-package com.individual.messenger.api.auth.dto;
+﻿package com.individual.messenger.api.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
@@ -10,4 +10,5 @@ public class RegisterRequest {
 
     // getter/setter
 }
+
 

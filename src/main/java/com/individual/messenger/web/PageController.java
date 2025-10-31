@@ -1,4 +1,4 @@
-package com.individual.messenger.web;
+﻿package com.individual.messenger.web;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,7 +9,8 @@ public class PageController {
     @GetMapping("/register") public String register(){ return "register"; }
     @GetMapping("/rooms")    public String rooms()  { return "rooms"; }   // ??
     @GetMapping("/chat/{roomId}") public String chat() { return "chat"; }   // templates/chat.html
-    @GetMapping("/")         public String home()   { return "login"; }   // ?�택: 루트??rooms�?
+    @GetMapping("/")         public String home()   { return "login"; }   // ?좏깮: 猷⑦듃??rooms濡?
 }
+
 
 

@@ -1,4 +1,4 @@
-package com.individual.messenger.api.dto;
+﻿package com.individual.messenger.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
@@ -16,4 +16,5 @@ public class LoginDtos {
         }
     }
 }
+
 

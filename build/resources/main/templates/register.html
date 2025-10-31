@@ -1,11 +1,11 @@
-<!-- src/main/resources/templates/register.html -->
+﻿<!-- src/main/resources/templates/register.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
     <meta charset="UTF-8" />
-    <title>?�원가??· Messenger</title>
+    <title>?뚯썝媛??쨌 Messenger</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="data:," /> <!-- favicon ?�청 차단 -->
+    <link rel="icon" href="data:," /> <!-- favicon ?붿껌 李⑤떒 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         html, body { height: 100%; }
@@ -15,57 +15,57 @@
 <body class="min-h-full bg-zinc-900 text-zinc-100">
 <main class="min-h-screen grid place-items-center px-4">
     <div class="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl">
-        <h1 class="text-xl font-semibold mb-1">?�원가??/h1>
-        <p class="text-sm text-zinc-400 mb-6">간단???�이???�름/비�?번호/?��??�만 ?�력?�세??</p>
+        <h1 class="text-xl font-semibold mb-1">?뚯썝媛??/h1>
+        <p class="text-sm text-zinc-400 mb-6">媛꾨떒???꾩씠???대쫫/鍮꾨?踰덊샇/?대??곕쭔 ?낅젰?섏꽭??</p>
 
-        <!-- ?�림 ?�역 -->
+        <!-- ?뚮┝ ?곸뿭 -->
         <div id="alert" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
 
         <form id="registerForm" class="space-y-4">
             <div>
-                <label for="loginId" class="block text-sm mb-1">?�이??(?�문/?�자 4~20)</label>
+                <label for="loginId" class="block text-sm mb-1">?꾩씠??(?곷Ц/?レ옄 4~20)</label>
                 <input id="loginId" name="loginId" autocomplete="username"
                        class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2"
                        placeholder="?? bluewlsghks" required minlength="4" maxlength="20">
             </div>
 
             <div>
-                <label for="userName" class="block text-sm mb-1">?�름</label>
+                <label for="userName" class="block text-sm mb-1">?대쫫</label>
                 <input id="userName" name="userName"
                        class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2"
                        placeholder="?? LEE" required maxlength="30">
             </div>
 
             <div>
-                <label for="password" class="block text-sm mb-1">비�?번호 (8???�상)</label>
+                <label for="password" class="block text-sm mb-1">鍮꾨?踰덊샇 (8???댁긽)</label>
                 <input id="password" name="password" type="password" autocomplete="new-password"
                        class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2"
-                       placeholder="?�문/?�자/?�수문자 조합 권장" required minlength="8" maxlength="64">
+                       placeholder="?곷Ц/?レ옄/?뱀닔臾몄옄 議고빀 沅뚯옣" required minlength="8" maxlength="64">
             </div>
 
             <div>
-                <label for="phoneNumber" class="block text-sm mb-1">?��???번호</label>
+                <label for="phoneNumber" class="block text-sm mb-1">?대???踰덊샇</label>
                 <input id="phoneNumber" name="phoneNumber" inputmode="tel"
                        class="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2"
-                       placeholder="010-1234-5678 ?�는 01012345678" required maxlength="20">
-                <p class="text-xs text-zinc-500 mt-1">???�버?�서 AES ?�호???�?�됩?�다.</p>
+                       placeholder="010-1234-5678 ?먮뒗 01012345678" required maxlength="20">
+                <p class="text-xs text-zinc-500 mt-1">???쒕쾭?먯꽌 AES ?뷀샇????λ맗?덈떎.</p>
             </div>
 
             <button id="submitBtn" type="submit"
                     class="w-full rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 font-medium">
-                가?�하�?
+                媛?낇븯湲?
             </button>
         </form>
 
         <div class="mt-6 text-center text-xs text-zinc-500">
-            ?��? 계정???�으?��???
-            <a th:href="@{/login}" class="text-emerald-400 hover:underline">로그??/a>
+            ?대? 怨꾩젙???덉쑝?좉???
+            <a th:href="@{/login}" class="text-emerald-400 hover:underline">濡쒓렇??/a>
         </div>
     </div>
 </main>
 
 <script>
-    // 간단 ?�효??검??& ?�맷??
+    // 媛꾨떒 ?좏슚??寃??& ?щ㎎??
     function normalizeLoginId(id) {
       return (id || '').trim();
     }
@@ -73,12 +73,12 @@
       return (nm || '').trim();
     }
     function normalizePhone(phone) {
-      // ?�자�?추출 ??010-XXXX-XXXX ?�태�??�맷
+      // ?レ옄留?異붿텧 ??010-XXXX-XXXX ?뺥깭濡??щ㎎
       const digits = (phone || '').replace(/\\D+/g, '').slice(0, 11);
       if (digits.length === 11 && digits.startsWith('010')) {
         return digits.replace(/(\\d{3})(\\d{4})(\\d{4})/, '$1-$2-$3');
       }
-      // �??�는 ?�문 ?��?(백엔?�에????�????�규??검�?
+      // 洹??몃뒗 ?먮Ц ?좎?(諛깆뿏?쒖뿉????踰????뺢퇋??寃利?
       return phone.trim();
     }
 
@@ -102,22 +102,22 @@
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
-      btn.textContent = '처리 �?..';
+      btn.textContent = '泥섎━ 以?..';
 
       const loginId = normalizeLoginId(document.getElementById('loginId').value);
       const userName = normalizeUserName(document.getElementById('userName').value);
       const password = document.getElementById('password').value || '';
       const phoneNumber = normalizePhone(document.getElementById('phoneNumber').value);
 
-      // ?�론??1�?검�?간단)
+      // ?꾨줎??1李?寃利?媛꾨떒)
       if (!/^[a-zA-Z0-9_\\-]{4,20}$/.test(loginId)) {
-        showAlert('?�이?�는 ?�문/?�자/?�더?�코???�이??4~20?�로 ?�력?�세??', 'error');
-        btn.disabled = false; btn.textContent = '가?�하�?;
+        showAlert('?꾩씠?붾뒗 ?곷Ц/?レ옄/?몃뜑?ㅼ퐫???섏씠??4~20?먮줈 ?낅젰?섏꽭??', 'error');
+        btn.disabled = false; btn.textContent = '媛?낇븯湲?;
         return;
       }
       if (password.length < 8) {
-        showAlert('비�?번호??8???�상?�어???�니??', 'error');
-        btn.disabled = false; btn.textContent = '가?�하�?;
+        showAlert('鍮꾨?踰덊샇??8???댁긽?댁뼱???⑸땲??', 'error');
+        btn.disabled = false; btn.textContent = '媛?낇븯湲?;
         return;
       }
 
@@ -128,32 +128,33 @@
           body: JSON.stringify({ id: loginId, userName, password, phoneNumber })
         });
 
-        // 백엔?�에??IllegalArgumentException ??400?�로 매핑?�다�??�기??처리
+        // 諛깆뿏?쒖뿉??IllegalArgumentException ??400?쇰줈 留ㅽ븨?덈떎硫??ш린??泥섎━
         const text = await res.text();
         let data = {};
-        try { data = JSON.parse(text); } catch(_) { /* text 그�?�??�용 */ }
+        try { data = JSON.parse(text); } catch(_) { /* text 洹몃?濡??ъ슜 */ }
 
         if (!res.ok) {
-          const msg = (data && (data.message || data.error)) || text || '가?�에 ?�패?�습?�다.';
+          const msg = (data && (data.message || data.error)) || text || '媛?낆뿉 ?ㅽ뙣?덉뒿?덈떎.';
           showAlert(msg, 'error');
-          btn.disabled = false; btn.textContent = '가?�하�?;
+          btn.disabled = false; btn.textContent = '媛?낇븯湲?;
           return;
         }
 
-        // ?�공
-        showAlert('?�원가?�이 ?�료?�었?�니?? 로그???�이지�??�동?�니??', 'success');
+        // ?깃났
+        showAlert('?뚯썝媛?낆씠 ?꾨즺?섏뿀?듬땲?? 濡쒓렇???섏씠吏濡??대룞?⑸땲??', 'success');
         setTimeout(() => {
-          // ?�요??경로�??�동
+          // ?꾩슂??寃쎈줈濡??대룞
           window.location.href = '/login';
         }, 1000);
 
       } catch (err) {
         console.error(err);
-        showAlert('?�트?�크 ?�류가 발생?�습?�다.', 'error');
-        btn.disabled = false; btn.textContent = '가?�하�?;
+        showAlert('?ㅽ듃?뚰겕 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.', 'error');
+        btn.disabled = false; btn.textContent = '媛?낇븯湲?;
       }
     });
 </script>
 </body>
 </html>
+
 

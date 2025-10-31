@@ -1,4 +1,4 @@
-package com.individual.messenger.domain;
+﻿package com.individual.messenger.domain;
 
 import java.time.Instant;
 
@@ -8,4 +8,5 @@ public class ChatMessage {
     public String content;
     public Instant createdAt = Instant.now();
 }
+
 

@@ -1,4 +1,4 @@
-package com.individual.messenger.repo;
+﻿package com.individual.messenger.repo;
 
 import com.individual.messenger.domain.Room;
 import com.individual.messenger.domain.RoomType;
@@ -11,6 +11,7 @@ public interface RoomRepository extends MongoRepository<Room, String> {
     Optional<Room> findByMembersKey(String membersKey);
     List<Room> findByMembersContaining(String memberId);
 }
+
 
 
 

@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>채팅</title>
+    <title>梨꾪똿</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ??공통 Auth JS (defer ?��?) -->
+    <!-- ??怨듯넻 Auth JS (defer ?좎?) -->
     <script src="/js/auth.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
@@ -12,9 +12,9 @@
 <body class="bg-zinc-900 text-zinc-100 flex flex-col h-screen">
 
 <header class="h-14 bg-zinc-950 flex items-center px-4 border-b border-zinc-800 gap-3">
-    <h1 id="title" class="text-lg font-semibold flex-1">채팅</h1>
-    <a href="/rooms" class="text-sm text-zinc-400 hover:text-zinc-200">??목록</a>
-    <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400 ml-3">로그?�웃</button>
+    <h1 id="title" class="text-lg font-semibold flex-1">梨꾪똿</h1>
+    <a href="/rooms" class="text-sm text-zinc-400 hover:text-zinc-200">??紐⑸줉</a>
+    <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400 ml-3">濡쒓렇?꾩썐</button>
 </header>
 
 <main id="list" class="flex-1 overflow-y-auto p-4 space-y-2"></main>
@@ -22,11 +22,11 @@
 <footer class="border-t border-zinc-800 p-3 bg-zinc-950 flex gap-2">
     <input id="input"
            class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none"
-           placeholder="메시지�??�력?�세??.." />
-    <button id="send" class="bg-emerald-600 px-4 py-2 rounded-lg text-white">보내�?/button>
+           placeholder="硫붿떆吏瑜??낅젰?섏꽭??.." />
+    <button id="send" class="bg-emerald-600 px-4 py-2 rounded-lg text-white">蹂대궡湲?/button>
 </footer>
 
-<!-- chat.html??<script> ?��? ?�체�???버전?�로 교체 -->
+<!-- chat.html??<script> ?대? ?꾩껜瑜???踰꾩쟾?쇰줈 援먯껜 -->
 <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (!Auth.requireLogin()) return;
@@ -37,12 +37,12 @@
       const userName = Auth.getUserName() || loginId;
 
       const roomId = location.pathname.split("/chat/")[1];
-      document.getElementById("title").textContent = "�?ID: " + roomId;
+      document.getElementById("title").textContent = "諛?ID: " + roomId;
 
       const listEl  = document.getElementById("list");
       const inputEl = document.getElementById("input");
 
-      // 메시지 ?�리먼트 참조 ?�?? id -> {el, data}
+      // 硫붿떆吏 ?섎━癒쇳듃 李몄“ ??? id -> {el, data}
       const msgMap = new Map();
 
       function fmtTime(iso) {
@@ -53,7 +53,7 @@
       }
 
       function renderMessage(m) {
-        // ?��? ?�더??메시지??건너?�
+        // ?대? ?뚮뜑??硫붿떆吏??嫄대꼫?
         if (m.id && msgMap.has(m.id)) return;
 
         const mine = m.senderId === loginId;
@@ -77,13 +77,13 @@
         timeSpan.textContent = fmtTime(m.createdAt);
         meta.appendChild(timeSpan);
 
-        // ?�음 뱃�?(??메시지?�만)
+        // ?쎌쓬 諭껋?(??硫붿떆吏?먮쭔)
         let readSpan = null;
         if (mine) {
           readSpan = document.createElement("span");
           readSpan.className = "px-1.5 py-0.5 rounded bg-zinc-700/60";
           const readers = (m.readBy || []).filter(u => u !== loginId);
-          readSpan.textContent = readers.length ? `?�음 ${readers.length}` : `?�읽??;
+          readSpan.textContent = readers.length ? `?쎌쓬 ${readers.length}` : `?덉씫??;
           meta.appendChild(readSpan);
         }
 
@@ -99,25 +99,25 @@
         }
       }
 
-      // ?�스?�리 로드
+      // ?덉뒪?좊━ 濡쒕뱶
       async function loadHistory() {
         const res = await Auth.authFetch(`/api/messages/${roomId}?limit=50`);
         if (!res.ok) {
-          listEl.innerHTML = `<p class="text-red-400">?�스?�리�?불러?????�습?�다 (${res.status})</p>`;
+          listEl.innerHTML = `<p class="text-red-400">?덉뒪?좊━瑜?遺덈윭?????놁뒿?덈떎 (${res.status})</p>`;
           return;
         }
         const msgs = await res.json();
         listEl.innerHTML = "";
-        // ?�래???�서?��??�더(?�버가 desc�??�집�?
+        // ?ㅻ옒???쒖꽌?濡??뚮뜑(?쒕쾭媛 desc硫??ㅼ쭛湲?
         msgs.reverse().forEach(renderMessage);
-        // ?�음 ?�송
+        // ?쎌쓬 ?꾩넚
         sendReadForUnseen();
       }
 
-      // ?�직 ?��? ???��? 메시지?�을 ?�버???�음 처리
+      // ?꾩쭅 ?닿? ???쎌? 硫붿떆吏?ㅼ쓣 ?쒕쾭???쎌쓬 泥섎━
       let readQueueTimer = null;
       function sendReadForUnseen() {
-        // ??메시지???�외, ?��? readBy???��? ?�으�??�외
+        // ??硫붿떆吏???쒖쇅, ?대? readBy???닿? ?덉쑝硫??쒖쇅
         const targetIds = [];
         for (const [id, {data}] of msgMap.entries()) {
           if (!data) continue;
@@ -127,7 +127,7 @@
         }
         if (!targetIds.length) return;
 
-        // ?�바?�스(짧게 묶어???�번???�송)
+        // ?붾컮?댁뒪(吏㏐쾶 臾띠뼱???쒕쾲???꾩넚)
         clearTimeout(readQueueTimer);
         readQueueTimer = setTimeout(async () => {
           try {
@@ -136,12 +136,12 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ roomId, messageIds: targetIds })
             });
-            // ?��???반영: ???�면?�도 즉시 ?�음 ?�시 ?�데?�트
+            // ?숆???諛섏쁺: ???붾㈃?먮룄 利됱떆 ?쎌쓬 ?쒖떆 ?낅뜲?댄듃
             for (const id of targetIds) {
               const entry = msgMap.get(id);
               if (entry) {
                 entry.data.readBy = Array.from(new Set([ ...(entry.data.readBy || []), loginId ]));
-                // ??메시지가 ?�니므�?readSpan?� ?�음
+                // ??硫붿떆吏媛 ?꾨땲誘濡?readSpan? ?놁쓬
               }
             }
           } catch (e) {
@@ -150,7 +150,7 @@
         }, 150);
       }
 
-      // STOMP ?�결
+      // STOMP ?곌껐
       const sock   = new SockJS("/ws-stomp");
       const client = Stomp.over(sock);
       client.debug  = null;
@@ -159,15 +159,15 @@
       client.connect({ Authorization: "Bearer " + Auth.getToken() }, async () => {
         await loadHistory();
 
-        // ??메시지
+        // ??硫붿떆吏
         client.subscribe(`/sub/chat/${roomId}`, msg => {
           const data = JSON.parse(msg.body);
           renderMessage(data);
-          // ?��? 보낸 �??�니�??�음 ?�송
+          // ?닿? 蹂대궦 寃??꾨땲硫??쎌쓬 ?꾩넚
           if (data.senderId !== loginId) sendReadForUnseen();
         });
 
-        // ?�음 ?�데?�트
+        // ?쎌쓬 ?낅뜲?댄듃
         client.subscribe(`/sub/chat/${roomId}/read`, frame => {
           const payload = JSON.parse(frame.body);
           const readerId = payload.readerId;
@@ -178,16 +178,16 @@
             const { data, readSpan } = entry;
             data.readBy = Array.from(new Set([ ...(data.readBy || []), readerId ]));
 
-            // ??메시지???�만 배�? ?�데?�트
+            // ??硫붿떆吏???뚮쭔 諛곗? ?낅뜲?댄듃
             if (data.senderId === loginId && readSpan) {
               const readers = (data.readBy || []).filter(u => u !== loginId);
-              readSpan.textContent = readers.length ? `?�음 ${readers.length}` : `?�읽??;
+              readSpan.textContent = readers.length ? `?쎌쓬 ${readers.length}` : `?덉씫??;
             }
           });
         });
       });
 
-      // 메시지 ?�송
+      // 硫붿떆吏 ?꾩넚
       document.getElementById("send").onclick = send;
       inputEl.addEventListener("keydown", e => {
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
@@ -208,4 +208,5 @@
 </script>
 </body>
 </html>
+
 

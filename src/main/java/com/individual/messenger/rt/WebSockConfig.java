@@ -1,4 +1,4 @@
-package com.individual.messenger.rt;
+﻿package com.individual.messenger.rt;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -21,4 +21,5 @@ public class WebSockConfig implements WebSocketMessageBrokerConfigurer {
                 .withSockJS();
     }
 }
+
 

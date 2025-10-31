@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8" />
-    <title>Messenger · DM (Dark)</title>
+    <title>Messenger 쨌 DM (Dark)</title>
     <link rel="icon" href="data:," />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,7 +23,7 @@
      data-room-id="68eda88ed6451b8903b514a3"
      data-me="LEE"
      data-ws="/ws-stomp">
-    <div class="h-full grid place-items-center text-zinc-400">로딩 중�?(React 마운????</div>
+    <div class="h-full grid place-items-center text-zinc-400">濡쒕뵫 以묅?(React 留덉슫????</div>
 </div>
 
 <script>
@@ -51,7 +51,7 @@
       constructor(p){ super(p); this.state = {hasError:false, error:null}; }
       static getDerivedStateFromError(err){ return {hasError:true, error:err}; }
       componentDidCatch(err, info){ console.error('UI Error:', err, info); }
-      render(){ if(this.state.hasError){ return React.createElement('div',{className:'p-4 text-red-300'},'?�더�??�류: '+(this.state.error&& (this.state.error.message||String(this.state.error)))); } return this.props.children; }
+      render(){ if(this.state.hasError){ return React.createElement('div',{className:'p-4 text-red-300'},'?뚮뜑留??ㅻ쪟: '+(this.state.error&& (this.state.error.message||String(this.state.error)))); } return this.props.children; }
     }
 
     function Notice(props){
@@ -77,7 +77,7 @@
       const [probe, setProbe]         = useState({ done:false, ok:false, status:null, error:null, body:null });
       const scrollRef = useRef(null);
 
-      // ?�� de-dup state: per-tab clientId + recentlySeen keys
+      // ?뮕 de-dup state: per-tab clientId + recentlySeen keys
       const clientId = React.useMemo(()=> genId(), []);
       const seenRef  = useRef(makeTTLSet(200, 8000)); // keep last 200 keys for 8s
       function msgKey(m){ return [m.sender||'', m.content||'', m.ts||''].join('|'); }
@@ -138,21 +138,21 @@
 
       if (probe.done && !probe.ok){
         var reason = '';
-        if (probe.status === 403)      reason = '?�버가 ?�청??거�??�습?�다 (403 Forbidden). 보안(CORS/CSRF/?�큐리티) ?�는 ?�록???�정 문제?????�습?�다.';
-        else if (probe.status === 404) reason = wsBase + ' 경로가 맞는지 ?�인?�세?? (컨텍?�트?�스/?�록??경로)';
-        else if (probe.error)          reason = '?�트?�크 ?�류: ' + probe.error;
-        else                           reason = 'HTTP ?�태: ' + probe.status;
+        if (probe.status === 403)      reason = '?쒕쾭媛 ?붿껌??嫄곕??덉뒿?덈떎 (403 Forbidden). 蹂댁븞(CORS/CSRF/?쒗걧由ы떚) ?먮뒗 ?꾨줉???ㅼ젙 臾몄젣?????덉뒿?덈떎.';
+        else if (probe.status === 404) reason = wsBase + ' 寃쎈줈媛 留욌뒗吏 ?뺤씤?섏꽭?? (而⑦뀓?ㅽ듃?⑥뒪/?꾨줉??寃쎈줈)';
+        else if (probe.error)          reason = '?ㅽ듃?뚰겕 ?ㅻ쪟: ' + probe.error;
+        else                           reason = 'HTTP ?곹깭: ' + probe.status;
         return React.createElement('div',{className:'flex flex-col h-screen'},[
           React.createElement('header',{key:'h',className:'h-12 border-b border-zinc-800 flex items-center px-3 bg-zinc-950'},
             React.createElement('div',{className:'text-sm font-semibold'},'Room: '+roomId)
           ),
-          React.createElement(Notice,{key:'n',title:'?�결 ?�패',detail:'?�유: '+reason+'\n\n'+
-            '?�인?�세??\n'+
-            '1) Spring Security?�서 /ws-stomp/**, OPTIONS 메서???�용 ?��?\n'+
-            '2) WebSocket ?�정: addEndpoint("/ws-stomp").setAllowedOriginPatterns("*").withSockJS()\n'+
-            '3) ?�록??Nginx ??: /ws-stomp ?�그?�이???�록???�스 ?�정\n'+
-            '4) 컨텍?�트?�스가 ?�다�?data-ws�??�바�?경로 ?�달(ex: /myapp/ws-stomp)',
-            action: React.createElement('div',{className:'mt-4 text-xs text-zinc-400'},['?�재 wsBase: ',React.createElement('span',{className:'font-mono',key:'w'},wsBase)])
+          React.createElement(Notice,{key:'n',title:'?곌껐 ?ㅽ뙣',detail:'?ъ쑀: '+reason+'\n\n'+
+            '?뺤씤?섏꽭??\n'+
+            '1) Spring Security?먯꽌 /ws-stomp/**, OPTIONS 硫붿꽌???덉슜 ?щ?\n'+
+            '2) WebSocket ?ㅼ젙: addEndpoint("/ws-stomp").setAllowedOriginPatterns("*").withSockJS()\n'+
+            '3) ?꾨줉??Nginx ??: /ws-stomp ?낃렇?덉씠???꾨줉???⑥뒪 ?ㅼ젙\n'+
+            '4) 而⑦뀓?ㅽ듃?⑥뒪媛 ?덈떎硫?data-ws濡??щ컮瑜?寃쎈줈 ?꾨떖(ex: /myapp/ws-stomp)',
+            action: React.createElement('div',{className:'mt-4 text-xs text-zinc-400'},['?꾩옱 wsBase: ',React.createElement('span',{className:'font-mono',key:'w'},wsBase)])
           })
         ]);
       }
@@ -160,7 +160,7 @@
       return React.createElement('div',{className:'flex flex-col h-screen bg-zinc-900 text-zinc-100'},[
         React.createElement('header',{key:'h',className:'h-12 border-b border-zinc-800 flex items-center justify-between px-3 bg-zinc-950'},[
           React.createElement('div',{key:'l',className:'text-sm font-semibold'},'Room: '+roomId),
-          React.createElement('div',{key:'r',className:'text-xs text-zinc-400'}, connected ? '?�결?? : '?�결 ?��?)
+          React.createElement('div',{key:'r',className:'text-xs text-zinc-400'}, connected ? '?곌껐?? : '?곌껐 ?湲?)
         ]),
         React.createElement('main',{key:'m',ref:scrollRef,className:'flex-1 overflow-y-auto px-4 py-4'},
           messages.map(function(m){
@@ -178,9 +178,9 @@
             React.createElement('textarea',{
               key:'ta',value:draft,onChange:function(e){ setDraft(e.target.value); },
               onKeyDown:function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); } },
-              placeholder:'메시지�??�력?�세??..',className:'flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 text-sm resize-none outline-none'
+              placeholder:'硫붿떆吏瑜??낅젰?섏꽭??..',className:'flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 text-sm resize-none outline-none'
             }),
-            React.createElement('button',{key:'btn',onClick:handleSend,className:'bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg'},'보내�?)
+            React.createElement('button',{key:'btn',onClick:handleSend,className:'bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg'},'蹂대궡湲?)
           ])
         )
       ]);
@@ -188,16 +188,17 @@
 
     document.addEventListener('DOMContentLoaded', function(){
       var container = document.getElementById('app');
-      if(!container){ console.error('??#app 컨테?�너가 ?�습?�다'); return; }
+      if(!container){ console.error('??#app 而⑦뀒?대꼫媛 ?놁뒿?덈떎'); return; }
       var root = ReactDOM.createRoot(container);
       root.render( React.createElement(ErrorBoundary,null, React.createElement(DMApp,null) ) );
     });
 
-    console.assert(typeof React !== 'undefined', 'React 로드 ?�패');
-    console.assert(typeof ReactDOM !== 'undefined', 'ReactDOM 로드 ?�패');
-    console.assert(typeof SockJS !== 'undefined', 'SockJS 로드 ?�패');
-    console.assert(typeof Stomp !== 'undefined', 'Stomp 로드 ?�패');
+    console.assert(typeof React !== 'undefined', 'React 濡쒕뱶 ?ㅽ뙣');
+    console.assert(typeof ReactDOM !== 'undefined', 'ReactDOM 濡쒕뱶 ?ㅽ뙣');
+    console.assert(typeof SockJS !== 'undefined', 'SockJS 濡쒕뱶 ?ㅽ뙣');
+    console.assert(typeof Stomp !== 'undefined', 'Stomp 濡쒕뱶 ?ㅽ뙣');
 </script>
 </body>
 </html>
+
 

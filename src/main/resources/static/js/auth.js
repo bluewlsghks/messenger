@@ -1,4 +1,4 @@
-// src/main/resources/static/js/auth.js
+﻿// src/main/resources/static/js/auth.js
 (function () {
   function getToken()       { return localStorage.getItem("token"); }
   function getLoginId()     { return localStorage.getItem("loginId"); }
@@ -70,16 +70,16 @@
     return true;
   }
 
-  // ???�역 ?�출 (+ ?�환??별칭 추�?)
+  // ???꾩뿭 ?몄텧 (+ ?명솚??蹂꾩묶 異붽?)
   window.Auth = {
-    // ?�래 메서??
+    // ?먮옒 硫붿꽌??
     getToken, getLoginId, getUserName,
     setAuth, clearAuthStorage,
     authFetch,
     setStompClient, getStompClient, disconnectStomp,
     logout, attachLogoutButton, requireLogin,
 
-    // ??별칭(rooms.html ??기존 ?�용 코드 ?�환)
+    // ??蹂꾩묶(rooms.html ??湲곗〈 ?ъ슜 肄붾뱶 ?명솚)
     token: getToken,
     loginId: getLoginId,
     userName: getUserName,
@@ -87,7 +87,8 @@
     fetch: authFetch
   };
 
-  // ?�택: 로드 ?�인??
-  // console.assert(typeof window.Auth !== "undefined", "Auth 로드 ?�패");
+  // ?좏깮: 濡쒕뱶 ?뺤씤??
+  // console.assert(typeof window.Auth !== "undefined", "Auth 濡쒕뱶 ?ㅽ뙣");
 })();
+
 

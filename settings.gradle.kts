@@ -1,2 +1,3 @@
-rootProject.name = "messenger"
+﻿rootProject.name = "messenger"
+
 

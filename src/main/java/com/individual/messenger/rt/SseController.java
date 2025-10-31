@@ -1,4 +1,4 @@
-package com.individual.messenger.rt;
+﻿package com.individual.messenger.rt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
@@ -39,4 +39,5 @@ public class SseController {
         }
     }
 }
+
 

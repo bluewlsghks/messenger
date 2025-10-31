@@ -1,4 +1,4 @@
-package com.individual.messenger.domain;
+﻿package com.individual.messenger.domain;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -15,18 +15,18 @@ public class Message {
     public String id;
 
     public String roomId;
-    public String senderId;      // 로그??ID (JWT??subject)
-    public String senderName;    // ?�시???�름
+    public String senderId;      // 濡쒓렇??ID (JWT??subject)
+    public String senderName;    // ?쒖떆???대쫫
     public String content;
 
     public Instant createdAt = Instant.now();
 
-    // ?�장: ?�음 처리??
+    // ?뺤옣: ?쎌쓬 泥섎━??
     public List<String> readBy = new ArrayList<>();
 
     public Message(String roomId, String sender, String content) {
         this.roomId = roomId;
-        this.senderId = sender;     // ?��? senderName ???�제 ?�드 ?�름??맞게
+        this.senderId = sender;     // ?뱀? senderName ???ㅼ젣 ?꾨뱶 ?대쫫??留욊쾶
         this.senderName = sender;
         this.content = content;
     }
@@ -35,4 +35,5 @@ public class Message {
 
     }
 }
+
 

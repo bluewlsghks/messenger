@@ -1,4 +1,4 @@
-package com.individual.messenger.api;
+﻿package com.individual.messenger.api;
 
 import com.individual.messenger.domain.Message;
 import com.individual.messenger.service.MessageService;
@@ -19,7 +19,7 @@ public class MessageController {
     private final MessageService messageService;
     public MessageController(MessageService messageService) { this.messageService = messageService; }
 
-    /** ??메시지 ?�??POST)?� ?�나�? JWT ?�증 ?�보 ?�용 */
+    /** ??硫붿떆吏 ???POST)? ?섎굹留? JWT ?몄쬆 ?뺣낫 ?ъ슜 */
     @PostMapping
     public ResponseEntity<Message> post(
             Authentication auth,
@@ -28,16 +28,16 @@ public class MessageController {
         String roomId = body.get("roomId");
         String content = body.get("content");
 
-        // 기본?�으�?JWT??subject�?senderId�??�용
+        // 湲곕낯?곸쑝濡?JWT??subject瑜?senderId濡??ъ슜
         String senderId = (auth != null) ? auth.getName() : body.getOrDefault("senderId", "anonymous");
-        // ?�시명�? ?�청???�어?�면 ?�용, ?�으�?senderId
+        // ?쒖떆紐낆? ?붿껌???ㅼ뼱?ㅻ㈃ ?ъ슜, ?놁쑝硫?senderId
         String senderName = body.getOrDefault("senderName", senderId);
 
         Message saved = messageService.save(roomId, senderId, senderName, content);
         return ResponseEntity.ok(saved);
     }
 
-    /** ???�이�?목록: GET /api/messages?roomId=...&page=0&size=20 */
+    /** ???섏씠吏?紐⑸줉: GET /api/messages?roomId=...&page=0&size=20 */
     @GetMapping
     public ResponseEntity<Map<String, Object>> list(
             @RequestParam String roomId,
@@ -53,7 +53,7 @@ public class MessageController {
         ));
     }
 
-    /** ???�스?�리: GET /api/messages/{roomId}?before=ISO&limit=50 */
+    /** ???덉뒪?좊━: GET /api/messages/{roomId}?before=ISO&limit=50 */
     @GetMapping("/{roomId}")
     public ResponseEntity<List<Message>> history(
             @PathVariable String roomId,
@@ -78,4 +78,5 @@ public class MessageController {
         return ResponseEntity.noContent().build();
     }
 }
+
 

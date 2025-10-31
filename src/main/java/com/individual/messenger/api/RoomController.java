@@ -1,4 +1,4 @@
-package com.individual.messenger.api;
+﻿package com.individual.messenger.api;
 
 import com.individual.messenger.domain.Room;
 import com.individual.messenger.service.RoomService;
@@ -16,7 +16,7 @@ public class RoomController {
     private final RoomService roomService;
     public RoomController(RoomService roomService) { this.roomService = roomService; }
 
-    /** ??�??�성 */
+    /** ??諛??앹꽦 */
     @PostMapping
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> req) {
         String type = (String) req.getOrDefault("type", "DIRECT");
@@ -30,12 +30,13 @@ public class RoomController {
         ));
     }
 
-    /** ???��? ?�한 �?목록 */
+    /** ???닿? ?랁븳 諛?紐⑸줉 */
     @GetMapping("/my")
     public ResponseEntity<List<Room>> myRooms(Authentication auth) {
-        String loginId = auth.getName(); // JWT ?�증???�용??
+        String loginId = auth.getName(); // JWT ?몄쬆???ъ슜??
         List<Room> rooms = roomService.findRoomsByMember(loginId);
         return ResponseEntity.ok(rooms);
     }
 }
+
 

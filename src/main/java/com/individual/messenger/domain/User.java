@@ -1,4 +1,4 @@
-package com.individual.messenger.domain;
+﻿package com.individual.messenger.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.data.annotation.Id;
@@ -33,4 +33,5 @@ public class User {
 
     public Instant createdAt = Instant.now();
 }
+
 

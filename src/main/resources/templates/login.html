@@ -1,39 +1,39 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>로그??/title>
+    <title>濡쒓렇??/title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="data:," /> <!-- favicon ?�청 차단 -->
+    <link rel="icon" href="data:," /> <!-- favicon ?붿껌 李⑤떒 -->
     <script src="/js/auth.js" defer></script>
 </head>
 <body class="bg-zinc-900 text-zinc-100 flex items-center justify-center h-screen">
 <div class="bg-zinc-800 p-8 rounded-2xl shadow-lg w-full max-w-sm">
-    <h2 class="text-2xl font-semibold mb-6 text-center">로그??/h2>
+    <h2 class="text-2xl font-semibold mb-6 text-center">濡쒓렇??/h2>
 
     <form id="loginForm" class="space-y-4">
         <div>
-            <label class="block mb-1 text-sm">?�이??/label>
+            <label class="block mb-1 text-sm">?꾩씠??/label>
             <input id="id" name="id" type="text"
                    class="w-full rounded-lg p-2 bg-zinc-700 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                   placeholder="?�이?��? ?�력?�세?? required />
+                   placeholder="?꾩씠?붾? ?낅젰?섏꽭?? required />
         </div>
 
         <div>
-            <label class="block mb-1 text-sm">비�?번호</label>
+            <label class="block mb-1 text-sm">鍮꾨?踰덊샇</label>
             <input id="password" name="password" type="password"
                    class="w-full rounded-lg p-2 bg-zinc-700 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                   placeholder="비�?번호�??�력?�세?? required />
+                   placeholder="鍮꾨?踰덊샇瑜??낅젰?섏꽭?? required />
         </div>
 
         <button type="submit"
                 class="w-full bg-emerald-600 hover:bg-emerald-500 rounded-lg py-2 font-semibold text-white">
-            로그??
+            濡쒓렇??
         </button>
 
         <p class="text-center text-sm text-zinc-400 mt-4">
-            ?�직 ?�원???�니?��???
-            <a href="/register" class="text-emerald-400 hover:text-emerald-300">?�원가??/a>
+            ?꾩쭅 ?뚯썝???꾨땲?좉???
+            <a href="/register" class="text-emerald-400 hover:text-emerald-300">?뚯썝媛??/a>
         </p>
     </form>
 </div>
@@ -53,18 +53,19 @@
       if (res.ok) {
         const data = await res.json();
 
-        // ??[추�?] 로그???�공 ???�용???�보 로컬?�토리�????�??
+        // ??[異붽?] 濡쒓렇???깃났 ???ъ슜???뺣낫 濡쒖뺄?ㅽ넗由ъ??????
         Auth.setAuth(data);
 
-        alert(`${data.userName}???�영?�니??`);
-        window.location.href = "/rooms"; // ??로그????메인 ?�면 ?�동
+        alert(`${data.userName}???섏쁺?⑸땲??`);
+        window.location.href = "/rooms"; // ??濡쒓렇????硫붿씤 ?붾㈃ ?대룞
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.message || "로그???�패. ?�이??비�?번호�??�인?�세??");
+        alert(err.message || "濡쒓렇???ㅽ뙣. ?꾩씠??鍮꾨?踰덊샇瑜??뺤씤?섏꽭??");
       }
     });
 </script>
 
 </body>
 </html>
+
 

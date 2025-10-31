@@ -1,4 +1,4 @@
-package com.individual.messenger.security;
+﻿package com.individual.messenger.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -37,4 +37,5 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         chain.doFilter(req, res);
     }
 }
+
 
