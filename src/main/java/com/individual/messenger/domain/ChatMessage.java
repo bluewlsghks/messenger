@@ -8,3 +8,4 @@ public class ChatMessage {
     public String content;
     public Instant createdAt = Instant.now();
 }
+

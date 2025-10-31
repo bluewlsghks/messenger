@@ -78,3 +78,4 @@ public class MessageController {
         return ResponseEntity.noContent().build();
     }
 }
+

@@ -39,3 +39,4 @@ public class ChatController {
         messaging.convertAndSend("/sub/chat/" + roomId, saved);
     }
 }
+

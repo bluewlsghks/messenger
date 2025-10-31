@@ -22,3 +22,4 @@ public class MessageSocketController {
         messageService.send(roomId, sender, content);
     }
 }
+

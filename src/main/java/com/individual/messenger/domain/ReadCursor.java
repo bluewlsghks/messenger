@@ -18,3 +18,4 @@ public class ReadCursor {
         this.roomId = roomId; this.username = username;
     }
 }
+

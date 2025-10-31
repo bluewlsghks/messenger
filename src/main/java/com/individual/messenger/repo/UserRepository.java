@@ -18,3 +18,4 @@ public interface UserRepository extends MongoRepository<User, String> {
         return findByLoginId(anyId).or(() -> findByLegacyId(anyId));
     }
 }
+

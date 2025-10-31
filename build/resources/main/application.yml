@@ -17,3 +17,4 @@ app:
     secretBase64: "y4LZbRkYx3hG3cG+6QOKXt+1RyV4PRaAMT6RuFSC9+0=" # JWT ?�명??(32바이??
     expiresMinutes: 120
 
+

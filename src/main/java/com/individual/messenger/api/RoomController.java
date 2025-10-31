@@ -38,3 +38,4 @@ public class RoomController {
         return ResponseEntity.ok(rooms);
     }
 }
+

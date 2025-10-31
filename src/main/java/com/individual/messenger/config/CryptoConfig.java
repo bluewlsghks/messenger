@@ -14,3 +14,4 @@ public class CryptoConfig {
         return new Aes256(key32, iv16);
     }
 }
+

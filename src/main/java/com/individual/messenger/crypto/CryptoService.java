@@ -64,3 +64,4 @@ public class CryptoService {
         return new String(decrypt(token), java.nio.charset.StandardCharsets.UTF_8);
     }
 }
+

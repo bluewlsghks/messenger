@@ -33,3 +33,4 @@ public class User {
 
     public Instant createdAt = Instant.now();
 }
+

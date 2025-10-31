@@ -23,3 +23,4 @@ public interface MessageRepository extends MongoRepository<Message, String> {
     @Query(value = "{ 'roomId': ?0, 'createdAt': { $lt: ?1 } }", sort = "{ 'createdAt': -1 }", fields = "{}")
     List<Message> findTopByRoomIdAndCreatedAtBeforeOrderByCreatedAtDesc(String roomId, Instant before, int limit);
 }
+

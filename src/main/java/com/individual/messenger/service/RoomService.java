@@ -26,3 +26,4 @@ public class RoomService {
         return roomRepo.findByMembersContaining(loginId);
     }
 }
+
