@@ -1,0 +1,31 @@
+# --- OS & IDE ---
+.DS_Store
+Thumbs.db
+*.iml
+.idea/
+.vscode/
+.classpath
+.project
+.settings/
+
+# --- Java/Gradle ---
+.gradle/
+**/build/
+**/out/
+**/bin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Node/Front-end (있다면) ---
+**/node_modules/
+**/.next/
+**/dist/
+**/.turbo/
+**/coverage/
+
+# --- Others ---
+*.swp
+*.swo
