@@ -13,7 +13,7 @@
 
 <header class="h-14 bg-zinc-950 flex items-center px-4 border-b border-zinc-800 gap-3">
     <h1 id="title" class="text-lg font-semibold flex-1">채팅</h1>
-    <a href="/rooms" class="text-sm text-zinc-400 hover:text-zinc-200">← 목록</a>
+    <a href="/home" class="text-sm text-zinc-400 hover:text-zinc-200">← 목록</a>
     <button id="logoutBtn" class="text-sm text-zinc-400 hover:text-red-400 ml-3">로그아웃</button>
 </header>
 
@@ -41,7 +41,7 @@
       const userName = Auth.getUserName() || loginId;
 
       const roomId = location.pathname.split("/chat/")[1];
-      document.getElementById("title").textContent = "방 ID: " + roomId;
+      document.getElementById("title").textContent = "대화방";
 
       const listEl    = document.getElementById("list");
       const spinnerEl = document.getElementById("topSpinner");
