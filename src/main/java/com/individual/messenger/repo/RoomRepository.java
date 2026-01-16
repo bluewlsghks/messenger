@@ -16,4 +16,7 @@ public interface RoomRepository extends MongoRepository<Room, String> {
 
     /** ✅ 특정 사용자가 포함된 방 목록 조회 */
     List<Room> findByMembersContaining(String userId);
+
+    Optional<Room> findByTypeAndMembersKey(String type, String membersKey);
+
 }

@@ -28,24 +28,27 @@ public class RoomService {
 
             String a = members.get(0);
             String b = members.get(1);
-            Room r = Room.directOf(a, b);
+
+            // 먼저 key를 만들어서(정규화 포함) find -> 없으면 insert 해도 됨
+            String key = makeMembersKey(a, b);
 
             try {
+                // directOf 안에서 membersKey를 key로 세팅하도록 맞추는게 베스트
+                Room r = Room.directOf(a, b);
                 return roomRepo.save(r);
             } catch (DuplicateKeyException race) {
-                String key = makeMembersKey(a, b);
-                return roomRepo.findByMembersKey(key).orElseThrow(() -> race);
+                return roomRepo.findByTypeAndMembersKey("DIRECT", key).orElseThrow(() -> race);
+
             }
-        }
-        else if ("GROUP".equals(t)) {
+        } else if ("GROUP".equals(t)) {
             Room g = Room.groupOf(members);
             g.createdAt = Instant.now();
             return roomRepo.save(g);
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("unknown type: " + type);
         }
     }
+
 
     /** 1:1 DM — 기존 있으면 재사용 */
     public Room createOrGetDirect(String me, String peer) {
@@ -84,8 +87,18 @@ public class RoomService {
 
     /** membersKey 생성 유틸 */
     private static String makeMembersKey(String a, String b) {
-        String[] arr = { a, b };
-        Arrays.sort(arr, String.CASE_INSENSITIVE_ORDER);
+        if (a == null || b == null) {
+            throw new IllegalArgumentException("member is null");
+        }
+        if (a.isBlank() || b.isBlank()) {
+            throw new IllegalArgumentException("member is blank");
+        }
+        if (a.equalsIgnoreCase(b)) {
+            throw new IllegalArgumentException("cannot create DM with self");
+        }
+
+        String[] arr = { a.trim().toLowerCase(), b.trim().toLowerCase() };
+        Arrays.sort(arr);
         return arr[0] + "#" + arr[1];
     }
 }
