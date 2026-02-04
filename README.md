@@ -195,19 +195,21 @@ bash
 코드 복사
 ./gradlew clean build
 ./gradlew bootRun
+🛠 Trouble Shooting
+1️⃣ DIRECT 채팅방 중복 생성 문제
+문제
 
-## 🛠 Trouble Shooting
+1:1 채팅방 생성 시 사용자 순서에 따라
+(A, B) 와 (B, A) 조합으로 중복 방이 생성되는 문제 발생
 
-### 1️⃣ DIRECT 채팅방 중복 생성 문제
-**문제**
-- 1:1 채팅방 생성 시 사용자 순서에 따라  
-  `(A, B)` 와 `(B, A)` 조합으로 중복 방이 생성되는 문제 발생
+해결
 
-**해결**
-- 두 사용자 ID를 정렬한 뒤 `membersKey` 생성
-- `membersKey`를 Unique Key로 사용하여 중복 방 방지
+두 사용자 ID를 정렬한 뒤 membersKey 생성
 
-```java
+membersKey를 Unique Key로 사용하여 중복 방 방지
+
+java
+코드 복사
 String[] arr = new String[]{a, b};
 Arrays.sort(arr);
 room.setMembersKey(String.join("#", arr));
@@ -270,6 +272,22 @@ WebSocket Handshake 단계에서 JWT를 파싱하여 사용자 식별
 
 WebSocket 통신에서도 인증 일관성 확보
 
+📝 Resume Summary (이력서용 요약)
+🔹 한 줄 요약
+WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고, JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
+
+🔹 Bullet 버전
+Spring Boot 기반 실시간 메신저 웹 애플리케이션 설계 및 구현
+
+WebSocket(STOMP) 기반 채팅 구조 및 메시지 브로드캐스트 처리
+
+JWT + Spring Security 기반 인증/인가 구조 구현
+
+MongoDB 기반 채팅방 및 메시지 도큐먼트 모델링
+
+DIRECT 채팅방 중복 생성 방지를 위한 membersKey 구조 설계
+
+OpenAI API 연동을 통한 AI 자동응답(/ai 명령) 기능 구현
 
 ⚠️ Notes
 운영 환경에서는 CORS를 * 대신 명시 도메인으로 제한 권장
