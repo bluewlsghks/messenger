@@ -1,3 +1,4 @@
+```md
 # 📬 Messenger (Realtime Chat)
 
 Spring Boot 기반의 **실시간 메신저 웹 애플리케이션**입니다.  
@@ -102,17 +103,13 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
   "senderName": "USER_NAME",
   "content": "hello"
 }
-
-
 AI 요청 흐름
-
 Client → /pub/ai.ask
 
 Server → /sub/chat/{roomId} (AI_BOT 응답)
 
 🔐 Security / Access Rules
 Public (Permit All)
-
 OPTIONS /**
 
 /api/auth/**
@@ -124,11 +121,9 @@ OPTIONS /**
 /, /home, /rooms, /friends, /chat/**
 
 Protected (JWT Required)
-
 /api/**
 
 정책
-
 세션 미사용 (STATELESS)
 
 JwtAuthFilter를 통한 JWT 검증
@@ -149,7 +144,6 @@ POST	/api/friends	친구 추가	Yes
 
 🗃 Data Model (MongoDB)
 rooms
-
 type (DIRECT | GROUP)
 
 members
@@ -159,7 +153,6 @@ membersKey
 createdAt
 
 messages
-
 roomId
 
 senderId
@@ -172,28 +165,29 @@ createdAt
 
 🚀 Local Run
 Environment Variables
+bash
+코드 복사
 SPRING_DATA_MONGODB_URI=...
 JWT_SECRET=...
 OPENAI_API_KEY=...
-
 Build & Run
+bash
+코드 복사
 ./gradlew clean build
 ./gradlew bootRun
-
 🛠 Trouble Shooting
 DIRECT 채팅방 중복 생성 방지
+java
+코드 복사
 String[] arr = new String[]{a, b};
 Arrays.sort(arr);
 room.setMembersKey(String.join("#", arr));
-
 STOMP 오류
-
 라이브러리 로드 순서 수정
 
 WebSocket 연결 후 send 실행
 
 API Key 노출
-
 git rebase 로 히스토리 제거
 
 환경변수 전환
@@ -201,13 +195,11 @@ git rebase 로 히스토리 제거
 .gitignore 정비
 
 WebSocket 인증
-
 Handshake JWT 파싱
 
 메시지 처리 시 인증 정보 활용
 
 📝 Resume Summary
-
 WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고
 JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
 
@@ -224,7 +216,9 @@ membersKey 기반 DM 중복 방지
 OpenAI API 연동
 
 ⚠️ Notes
-
 운영 환경에서는 CORS를 * 대신 도메인 제한 권장
 
 senderId는 클라이언트 값 신뢰 ❌ → 서버에서 JWT 기반으로 결정 권장
+
+markdown
+코드 복사
