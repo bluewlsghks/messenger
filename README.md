@@ -160,7 +160,6 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 ## 🛠 Trouble Shooting
 
 ### DIRECT 채팅방 중복 생성
-```java
 String[] arr = new String[]{a, b};
 Arrays.sort(arr);
 room.setMembersKey(String.join("#", arr));
@@ -181,7 +180,7 @@ Handshake 단계에서 JWT 파싱
 
 메시지 처리 시 인증 정보 활용
 
----
+
 
 📝 Resume Summary
 WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고
