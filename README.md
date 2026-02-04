@@ -195,6 +195,8 @@ bash
 코드 복사
 ./gradlew clean build
 ./gradlew bootRun
+
+
 ⚠️ Notes
 운영 환경에서는 CORS를 * 대신 명시 도메인으로 제한 권장
 
