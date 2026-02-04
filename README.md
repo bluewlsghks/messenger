@@ -196,6 +196,80 @@ bash
 ./gradlew clean build
 ./gradlew bootRun
 
+## 🛠 Trouble Shooting
+
+### 1️⃣ DIRECT 채팅방 중복 생성 문제
+**문제**
+- 1:1 채팅방 생성 시 사용자 순서에 따라  
+  `(A, B)` 와 `(B, A)` 조합으로 중복 방이 생성되는 문제 발생
+
+**해결**
+- 두 사용자 ID를 정렬한 뒤 `membersKey` 생성
+- `membersKey`를 Unique Key로 사용하여 중복 방 방지
+
+```java
+String[] arr = new String[]{a, b};
+Arrays.sort(arr);
+room.setMembersKey(String.join("#", arr));
+결과
+
+동일 사용자 간 DIRECT 채팅방이 하나만 생성되도록 보장
+
+2️⃣ STOMP 연결 오류 (Stomp is not defined)
+문제
+
+프론트엔드에서 STOMP 클라이언트 객체가 undefined 오류 발생
+
+원인
+
+STOMP 라이브러리 로드 순서 문제
+
+WebSocket 연결 전에 STOMP 객체 접근
+
+해결
+
+라이브러리 로드 순서 수정
+
+WebSocket 연결 완료 후 send 로직 실행
+
+결과
+
+실시간 메시지 전송 안정화
+
+3️⃣ GitHub Push Protection (API Key 노출)
+문제
+
+OpenAI API Key가 커밋 히스토리에 포함되어
+GitHub Push Protection에 의해 push 차단
+
+해결
+
+git rebase를 사용해 히스토리에서 민감 정보 제거
+
+.gitignore에 build 결과물 및 설정 파일 추가
+
+환경변수 방식으로 키 관리하도록 구조 변경
+
+결과
+
+보안 이슈 해결 및 안전한 배포 구조 확보
+
+4️⃣ WebSocket 인증 처리
+문제
+
+REST API는 JWT 인증이 적용되었으나
+WebSocket 연결 시 사용자 인증 정보 누락
+
+해결
+
+WebSocket Handshake 단계에서 JWT를 파싱하여 사용자 식별
+
+이후 메시지 처리 시 인증된 사용자 정보 활용
+
+결과
+
+WebSocket 통신에서도 인증 일관성 확보
+
 
 ⚠️ Notes
 운영 환경에서는 CORS를 * 대신 명시 도메인으로 제한 권장
