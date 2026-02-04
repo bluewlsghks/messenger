@@ -13,106 +13,88 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 
 ## 🛠 Tech Stack
 
-### Backend
+**Backend**  
 - Java 21, Spring Boot 3.3.3  
 - Spring Web, Spring WebSocket, Spring Messaging  
 
-### Realtime
+**Realtime**  
 - WebSocket, STOMP  
 
-### Database
+**Database**  
 - MongoDB Atlas  
 - Spring Data MongoDB  
 
-### Auth / Security
+**Auth / Security**  
 - Spring Security  
 - JWT (jjwt 0.11.5)  
 - BCrypt  
 
-### Template
+**Template**  
 - Thymeleaf  
 
-### AI
+**AI**  
 - OpenAI Java SDK (`com.openai:openai-java:4.16.1`)  
 
-### Build
+**Build**  
 - Gradle (Kotlin DSL)
 
 ---
 
 ## ✨ Features
 
-### 🔹 Realtime Chat
+**Realtime Chat**
 - WebSocket + STOMP 기반 실시간 채팅
 - 메시지 MongoDB 저장 및 브로드캐스트
-- (진행 중)
-  - 무한 스크롤
-  - 날짜 구분선
-  - 읽음 처리(Read Receipt)
+- (진행 중) 무한 스크롤, 날짜 구분선, 읽음 처리
 
-### 🔹 Rooms / Friends / Messages (REST API)
+**Rooms / Friends / Messages (REST API)**
 - JWT 기반 로그인 / 회원가입
 - 채팅방(Room) 관리
 - 메시지(Message) 조회 및 저장
 - 친구(Friend) 기능
 
-### 🔹 AI Bot
+**AI Bot**
 - 채팅에서 `/ai` 명령을 통해 AI 응답 생성
 - AI 전용 STOMP 엔드포인트 `/pub/ai.ask`
-- 최근 메시지 N개(예: 50개)를 컨텍스트로 활용하여 응답 생성
-- AI 응답도 일반 메시지와 동일하게 브로드캐스트 처리
+- 최근 메시지 N개(예: 50개)를 컨텍스트로 활용
+- AI 응답도 일반 메시지와 동일하게 브로드캐스트
 
 ---
 
 ## 🧩 Architecture
 
-본 프로젝트는 **REST API + WebSocket(STOMP)** 구조를 결합하여 설계되었습니다.
+**인증 흐름**
+- `/api/auth/login` → JWT 발급  
+- `/api/**` 요청 JWT 인증  
+- WebSocket 연결 시 JWT 기반 사용자 식별  
 
-### 1️⃣ 인증 흐름
-- 사용자는 `/api/auth/login`을 통해 로그인
-- 서버는 JWT 발급
-- 이후 `/api/**` 요청은 JWT 기반 인증
-- WebSocket 연결 시에도 JWT 기반 사용자 식별 구조로 설계
+**메시지 흐름**
+- Client → `/pub/chat.send`  
+- Server → MongoDB 저장  
+- Server → `/sub/chat/{roomId}` 브로드캐스트  
 
-### 2️⃣ 메시지 처리 흐름
-- 클라이언트 → `/pub/chat.send` 로 메시지 발행
-- 서버 → MongoDB에 메시지 저장
-- 서버 → `/sub/chat/{roomId}` 로 브로드캐스트
-- 같은 방을 구독 중인 클라이언트가 실시간 수신
+**AI 흐름**
+- Client → `/pub/ai.ask`  
+- OpenAI API 호출  
+- `/sub/chat/{roomId}` 응답 전송  
 
-### 3️⃣ AI 처리 흐름
-- 사용자가 `/ai` 명령 또는 `/pub/ai.ask`로 질문 전송
-- 서버는 최근 메시지 N개를 조회하여 컨텍스트 구성
-- OpenAI API 호출
-- AI 응답을 `/sub/chat/{roomId}` 로 브로드캐스트
-
-### 4️⃣ 데이터 저장 구조
-- Room 과 Message 컬렉션 분리 저장
-- DIRECT(1:1 채팅)의 경우  
-  👉 `membersKey` 기반으로 중복 방 생성 방지
+**데이터 구조**
+- Room / Message 컬렉션 분리  
+- DIRECT 채팅방은 `membersKey` 기반 중복 방지  
 
 ---
 
 ## 🔌 WebSocket (STOMP)
 
-### Handshake Endpoint
-- `GET /ws-stomp`
-- SockJS 사용
-- 개발 단계 CORS 허용: `AllowedOriginPatterns("*")`
-
-### Prefix
-- Publish (Client → Server): `/pub/**`
-- Subscribe (Server → Client): `/sub/**`
+- Endpoint: `GET /ws-stomp`  
+- Publish: `/pub/**`  
+- Subscribe: `/sub/**`
 
 ---
 
 ## 🔁 Message Flow
 
-### ✅ 일반 채팅 메시지
-- Client → `/pub/chat.send`  
-- Server → `/sub/chat/{roomId}`  
-
-Payload 예시:
+**일반 채팅 메시지 예시**
 ```json
 {
   "roomId": "ROOM_ID",
@@ -120,13 +102,15 @@ Payload 예시:
   "senderName": "USER_NAME",
   "content": "hello"
 }
-✅ AI 전용 요청
+AI 요청
+
 Client → /pub/ai.ask
 
 Server → /sub/chat/{roomId} (AI_BOT 응답)
 
 🔐 Security / Access Rules
 Public (Permit All)
+
 OPTIONS /**
 
 /api/auth/**
@@ -138,6 +122,7 @@ OPTIONS /**
 /, /home, /rooms, /friends, /chat/**
 
 Protected (JWT Required)
+
 /api/**
 
 세션 미사용 (STATELESS)
@@ -153,19 +138,21 @@ POST	/api/rooms	채팅방 생성	Yes
 GET	/api/messages/{roomId}	메시지 조회	Yes
 GET	/api/friends	친구 목록 조회	Yes
 POST	/api/friends	친구 추가	Yes
-POST	/pub/ai.ask (STOMP)	AI 질문 요청	Yes
+POST	/pub/ai.ask	AI 질문 요청	Yes
 
 🗃 Data Model (MongoDB)
 rooms
+
 type (DIRECT | GROUP)
 
 members
 
-membersKey (DIRECT 중복 방 방지용 키)
+membersKey
 
 createdAt
 
 messages
+
 roomId
 
 senderId
@@ -177,85 +164,67 @@ content
 createdAt
 
 🚀 Local Run
-Requirements
-JDK 21
-
-MongoDB Atlas
-
 Environment Variables
+
 bash
 코드 복사
 SPRING_DATA_MONGODB_URI
 JWT_SECRET
 OPENAI_API_KEY
 Build & Run
+
 bash
 코드 복사
 ./gradlew clean build
 ./gradlew bootRun
 🛠 Trouble Shooting
-1️⃣ DIRECT 채팅방 중복 생성 문제
-문제
-
-(A, B) 와 (B, A) 조합으로 중복 방 생성
-
-해결
+DIRECT 채팅방 중복 생성
 
 java
 코드 복사
 String[] arr = new String[]{a, b};
 Arrays.sort(arr);
 room.setMembersKey(String.join("#", arr));
-결과
+STOMP 오류
 
-동일 사용자 간 DIRECT 채팅방 하나만 생성
+라이브러리 로드 순서 수정
 
-2️⃣ STOMP 연결 오류 (Stomp is not defined)
-원인
+WebSocket 연결 후 send 실행
 
-라이브러리 로드 순서 문제
+API Key 노출
 
-해결
+git rebase
 
-STOMP 로드 순서 수정
-
-WebSocket 연결 완료 후 send 실행
-
-3️⃣ GitHub Push Protection (API Key 노출)
-해결
-
-git rebase로 히스토리에서 키 제거
-
-환경변수 방식으로 변경
+환경변수 전환
 
 .gitignore 정비
 
-4️⃣ WebSocket 인증 처리
-해결
+WebSocket 인증
 
-Handshake 단계에서 JWT 파싱
+Handshake JWT 파싱
 
 메시지 처리 시 인증 정보 활용
 
 📝 Resume Summary
-한 줄 요약
-WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고,
+WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고
 JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
 
-Bullet
-Spring Boot 기반 실시간 메신저 웹 애플리케이션 설계 및 구현
+Spring Boot 기반 메신저 설계 및 구현
 
-WebSocket(STOMP) 기반 채팅 구조 및 메시지 브로드캐스트 처리
+STOMP 실시간 통신
 
-JWT + Spring Security 기반 인증/인가 구조 구현
+JWT 인증 구조
 
-MongoDB 기반 채팅방 및 메시지 도큐먼트 모델링
+MongoDB 모델링
 
-membersKey 기반 DIRECT 채팅방 중복 방지 구조 설계
+membersKey 기반 중복 방지
 
-OpenAI API 연동 AI 자동응답(/ai) 기능 구현
+OpenAI API 연동
 
 ⚠️ Notes
-운영 환경에서는 CORS를 * 대신 명시 도메인으로 제한 권장
+운영 환경에서는 CORS를 * 대신 도메인 제한 권장
 
-senderId는 JWT 기반 서버 검증 구조 권장
+senderId는 서버에서 JWT 기반 검증 권장
+
+yaml
+코드 복사
