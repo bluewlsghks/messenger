@@ -176,5 +176,8 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 - 운영 환경에서는 CORS를 `*` 대신 도메인 제한 방식으로 설정 권장  
 - `senderId`는 서버에서 JWT 기반으로 검증하는 구조 권장  
 
+---
 
+## 📬 Contact
+📧 bluewlsghks@gmail.com
 
