@@ -182,11 +182,13 @@ Handshake 단계에서 JWT 파싱
 
 
 
-##📝 Resume Summary
+📝 Resume Summary
+
 WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고
 JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
 
 주요 구현 내용
+
 Spring Boot 기반 메신저 설계 및 구현
 
 STOMP 기반 실시간 통신 처리
@@ -200,6 +202,7 @@ membersKey 기반 DIRECT 채팅방 중복 방지
 OpenAI API 연동 AI 자동응답 기능 구현
 
 ⚠️ Notes
+
 운영 환경에서는 CORS를 * 대신 도메인 제한 방식으로 설정 권장
 
 senderId는 서버에서 JWT 기반으로 검증하는 구조 권장
