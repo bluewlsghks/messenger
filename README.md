@@ -96,14 +96,13 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 
 ### 일반 채팅 메시지 예시
 ```json
-/*
 {
   "roomId": "ROOM_ID",
   "senderId": "USER_ID",
   "senderName": "USER_NAME",
   "content": "hello"
 }
-*/
+
 
 AI 요청 흐름
 
