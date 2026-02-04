@@ -36,7 +36,7 @@ WebSocket(STOMP) 실시간 채팅과 MongoDB 저장, JWT 인증을 바탕으로 
 
 ---
 
-## Project Structure (example)
+## Project Structure
 
 > 실제 패키지명은 프로젝트 기준으로 확인 후 업데이트하세요.
 
