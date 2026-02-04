@@ -182,7 +182,7 @@ Handshake 단계에서 JWT 파싱
 
 
 
-📝 Resume Summary
+##📝 Resume Summary
 WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고
 JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
 
