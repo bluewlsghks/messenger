@@ -11,6 +11,21 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 
 ---
 
+## 📝 Resume Summary
+
+> WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고  
+> JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
+
+### 주요 구현 내용
+- Spring Boot 기반 메신저 설계 및 구현  
+- STOMP 기반 실시간 통신 처리  
+- JWT 인증 구조 적용  
+- MongoDB 도큐먼트 모델링  
+- `membersKey` 기반 DIRECT 채팅방 중복 방지  
+- OpenAI API 연동 AI 자동응답 기능 구현  
+
+---
+
 ## 🛠 Tech Stack
 
 **Backend**  
@@ -154,21 +169,6 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 - `senderName`
 - `content`
 - `createdAt`
-
----
-
-## 📝 Resume Summary
-
-> WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고  
-> JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
-
-### 주요 구현 내용
-- Spring Boot 기반 메신저 설계 및 구현  
-- STOMP 기반 실시간 통신 처리  
-- JWT 인증 구조 적용  
-- MongoDB 도큐먼트 모델링  
-- `membersKey` 기반 DIRECT 채팅방 중복 방지  
-- OpenAI API 연동 AI 자동응답 기능 구현  
 
 ---
 
