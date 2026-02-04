@@ -336,19 +336,26 @@
       });
 
       function send() {
-        const text = inputEl.value.trim();
-        if (!text) return;
-        const payload = JSON.stringify({
-          roomId,
-          senderId: loginId,
-          senderName: userName,
-          content: text
-        });
-        // ✅ 연결 상태에 따라 안전 전송
-        safeSend("/pub/chat.send", {}, payload);
-        inputEl.value = "";
-        requestAnimationFrame(() => listEl.scrollTop = listEl.scrollHeight);
-      }
+          const text = inputEl.value.trim();
+          if (!text) return;
+
+          const payload = JSON.stringify({
+            roomId,
+            senderId: loginId,
+            senderName: userName,
+            content: text
+          });
+
+          if (text.startsWith("/ai")) {
+            safeSend("/pub/ai.ask", {}, payload);  // ✅ AI 전용
+          } else {
+            safeSend("/pub/chat.send", {}, payload); // ✅ 일반 채팅
+          }
+
+          inputEl.value = "";
+          requestAnimationFrame(() => listEl.scrollTop = listEl.scrollHeight);
+        }
+
 
       // ===============================
       // ✅ 읽음 처리 (TDZ 방지)

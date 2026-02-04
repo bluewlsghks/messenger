@@ -86,4 +86,12 @@ public class MessageService {
                 "readerId", readerId
         ));
     }
+
+    public List<Message> findRecentMessages(String roomId, int limit) {
+        List<Message> list =
+                messageRepo.findTop50ByRoomIdOrderByCreatedAtDesc(roomId);
+        Collections.reverse(list);
+        return list;
+    }
+
 }
