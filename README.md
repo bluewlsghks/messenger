@@ -157,18 +157,6 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 
 ---
 
-## 🚀 Local Run
-
-### Environment Variables
-```bash
-SPRING_DATA_MONGODB_URI
-JWT_SECRET
-OPENAI_API_KEY
-
-Build & Run
-./gradlew clean build
-./gradlew bootRun
-
 🛠 Trouble Shooting
 DIRECT 채팅방 중복 생성
 String[] arr = new String[]{a, b};
