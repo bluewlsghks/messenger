@@ -164,3 +164,56 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 SPRING_DATA_MONGODB_URI
 JWT_SECRET
 OPENAI_API_KEY
+
+Build & Run
+./gradlew clean build
+./gradlew bootRun
+
+🛠 Trouble Shooting
+DIRECT 채팅방 중복 생성
+String[] arr = new String[]{a, b};
+Arrays.sort(arr);
+room.setMembersKey(String.join("#", arr));
+
+STOMP 오류
+
+라이브러리 로드 순서 수정
+
+WebSocket 연결 후 send 실행
+
+API Key 노출
+
+git rebase
+
+환경변수 전환
+
+.gitignore 정비
+
+WebSocket 인증
+
+Handshake 단계 JWT 파싱
+
+메시지 처리 시 인증 정보 활용
+
+📝 Resume Summary
+
+WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고
+JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
+
+Spring Boot 기반 메신저 설계 및 구현
+
+STOMP 실시간 통신
+
+JWT 인증 구조
+
+MongoDB 모델링
+
+membersKey 기반 중복 방지
+
+OpenAI API 연동
+
+⚠️ Notes
+
+운영 환경에서는 CORS를 * 대신 도메인 제한 권장
+
+senderId는 서버에서 JWT 기반 검증 권장
