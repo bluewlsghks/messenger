@@ -157,51 +157,48 @@ WebSocket(STOMP) 기반 채팅과 JWT 인증, MongoDB 저장 구조를 직접 �
 
 ---
 
-🛠 Trouble Shooting
-DIRECT 채팅방 중복 생성
+## 🛠 Trouble Shooting
+
+### DIRECT 채팅방 중복 생성
+```java
 String[] arr = new String[]{a, b};
 Arrays.sort(arr);
 room.setMembersKey(String.join("#", arr));
-
 STOMP 오류
-
 라이브러리 로드 순서 수정
 
 WebSocket 연결 후 send 실행
 
 API Key 노출
+git rebase로 히스토리에서 키 제거
 
-git rebase
-
-환경변수 전환
+환경변수 방식으로 전환
 
 .gitignore 정비
 
 WebSocket 인증
-
-Handshake 단계 JWT 파싱
+Handshake 단계에서 JWT 파싱
 
 메시지 처리 시 인증 정보 활용
 
 📝 Resume Summary
-
 WebSocket(STOMP) 기반 실시간 메신저 시스템을 설계·구현하고
 JWT 인증 및 MongoDB 저장 구조와 AI 자동응답 기능을 연동한 개인 프로젝트
 
+주요 구현 내용
 Spring Boot 기반 메신저 설계 및 구현
 
-STOMP 실시간 통신
+STOMP 기반 실시간 통신 처리
 
-JWT 인증 구조
+JWT 인증 구조 적용
 
-MongoDB 모델링
+MongoDB 도큐먼트 모델링
 
-membersKey 기반 중복 방지
+membersKey 기반 DIRECT 채팅방 중복 방지
 
-OpenAI API 연동
+OpenAI API 연동 AI 자동응답 기능 구현
 
 ⚠️ Notes
+운영 환경에서는 CORS를 * 대신 도메인 제한 방식으로 설정 권장
 
-운영 환경에서는 CORS를 * 대신 도메인 제한 권장
-
-senderId는 서버에서 JWT 기반 검증 권장
+senderId는 서버에서 JWT 기반으로 검증하는 구조 권장
