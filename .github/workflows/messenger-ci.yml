@@ -70,7 +70,10 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:8080/login >/dev/null
-          python3 src/test/e2e/workspace.py
+          python3 src/test/e2e/run_workspace.py
+      - name: Retain tested source snapshot
+        if: always()
+        run: git archive --format=zip --output=build/tested-source.zip HEAD
       - name: Test reports and real browser screenshots
         uses: actions/upload-artifact@v4
         if: always()
@@ -80,4 +83,5 @@ jobs:
             build/reports/tests/test
             build/e2e-artifacts
             build/e2e-server.log
+            build/tested-source.zip
           if-no-files-found: warn
