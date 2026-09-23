@@ -25,7 +25,6 @@ public class UserController {
     public Profile me(Principal principal) {
         User user = access.actor(principal);
         String phone = user.phoneEnc == null || user.phoneEnc.isBlank() ? null : crypto.decryptString(user.phoneEnc);
-        // Map.of rejects null; phone-less legacy users are valid.
         return new Profile(user.loginId, user.userName == null ? user.loginId : user.userName, phone, user.createdAt);
     }
     @PatchMapping("/me")
@@ -33,7 +32,7 @@ public class UserController {
         User user = access.actor(principal);
         String name = request.userName().strip();
         if (name.isBlank() || name.chars().anyMatch(Character::isISOControl)) throw new IllegalArgumentException("표시 이름을 확인해 주세요.");
-        mongo.updateFirst(Query.query(Criteria.where("id").is(user.mongoId)), new Update().set("userName", name), User.class);
+        mongo.updateFirst(Query.query(Criteria.where("mongoId").is(user.mongoId)), new Update().set("userName", name), User.class);
         return new Profile(user.loginId, name, null, user.createdAt);
     }
     public record Profile(String id, String userName, String phoneNumber, Instant createdAt) {}

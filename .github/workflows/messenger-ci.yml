@@ -1,31 +1,26 @@
 name: Messenger CI
 on:
-  push:
-    branches: [master, 'feat/discord-server-channels']
   pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: messenger-ci-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       mongo:
         image: mongo:7.0
-        ports:
-          - 27017:27017
+        ports: ['27017:27017']
         options: >-
           --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+          --health-interval 10s --health-timeout 5s --health-retries 10
     env:
       MONGODB_TEST_URI: mongodb://localhost:27017
       MONGODB_URI: mongodb://localhost:27017/messenger_ci
-      # Public disposable test fixtures, NOT application credentials.
+      # Disposable CI keys, never production credentials.
       APP_AES_KEY_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
       APP_JWT_SECRET_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
       APP_OPENAI_ENABLED: 'false'
@@ -38,11 +33,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check browser JavaScript, IME handling and safe rendering
+      - name: Browser JavaScript syntax and regression tests
         run: |
           for file in src/main/resources/static/js/*.js; do node --check "$file"; done
-          node --test src/test/js/*.test.cjs
-      - name: Unit tests, MongoDB integration tests and application build
+          node --test src/test/js/*.cjs
+      - name: Java unit and real MongoDB HTTP integration tests; bootJar
         run: bash ./gradlew test bootJar --no-daemon
       - name: Summarize Java test results
         if: always()
@@ -59,10 +54,30 @@ jobs:
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as report:
               report.write(summary + '\n')
           PY
-      - name: Test reports
-        if: always()
+      - name: Install browser test tools
+        run: |
+          python3 -m pip install playwright==1.55.0
+          python3 -m playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Real browser workspace, friends, WebSocket and notification scenarios
+        run: |
+          mkdir -p build/e2e-artifacts
+          java -jar build/libs/*SNAPSHOT.jar > build/e2e-server.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/login >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8080/login >/dev/null
+          python3 src/test/e2e/workspace.py
+      - name: Test reports and real browser screenshots
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: messenger-test-reports
-          path: build/reports/tests/test
-          if-no-files-found: ignore
+          name: messenger-validation
+          path: |
+            build/reports/tests/test
+            build/e2e-artifacts
+            build/e2e-server.log
+          if-no-files-found: warn
