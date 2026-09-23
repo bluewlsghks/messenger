@@ -45,6 +45,21 @@ jobs:
           node --test src/test/js/conversation.test.cjs
       - name: Unit tests, MongoDB integration tests and application build
         run: bash ./gradlew test bootJar --no-daemon
+      - name: Summarize Java test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+          totals = dict(tests=0, failures=0, errors=0, skipped=0)
+          for file in glob.glob('build/test-results/test/TEST-*.xml'):
+              suite = ET.parse(file).getroot()
+              for key in totals:
+                  totals[key] += int(suite.get(key, 0))
+          summary = 'Java test results: ' + ', '.join(f'{key}={value}' for key, value in totals.items())
+          print(summary)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as report:
+              report.write(summary + '\n')
+          PY
       - name: Test reports
         if: always()
         uses: actions/upload-artifact@v4
