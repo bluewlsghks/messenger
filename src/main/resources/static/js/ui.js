@@ -11,7 +11,17 @@
   };
   const el = (tag, cls, text) => { const n = document.createElement(tag); if(cls) n.className=cls; if(text!==undefined) n.textContent=text; return n; };
   function icon(name) { const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('class','icon'); svg.setAttribute('fill','none'); svg.setAttribute('stroke','currentColor'); svg.setAttribute('stroke-width','1.7'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round'); svg.setAttribute('aria-hidden','true'); const p=document.createElementNS(svg.namespaceURI,'path'); p.setAttribute('d',paths[name]||paths.chat); svg.append(p); return svg; }
-  function button(label, action, cls='secondary', glyph) { const n=el('button',cls); n.type='button'; n.setAttribute('aria-label',label); n.title=label; if(glyph)n.append(icon(glyph)); if(!cls.includes('icon-button'))n.append(document.createTextNode(label)); n.addEventListener('click',action); return n; }
+  function button(label, action, cls='secondary', glyph) {
+    const n=el('button',cls); n.type='button';
+    // Visible text is the accessible name and may change (e.g. enable/disable).
+    // Only icon-only or subsequently composited controls need an explicit name.
+    if (cls.includes('icon-button') || cls.includes('rail-button') || cls.includes('conversation-link') || cls==='notice-item') {
+      n.setAttribute('aria-label',label); n.title=label;
+    }
+    if(glyph)n.append(icon(glyph));
+    if(!cls.includes('icon-button'))n.append(document.createTextNode(label));
+    n.addEventListener('click',action); return n;
+  }
   function avatar(name, self=false) { const n=el('span',`avatar${self?' self-avatar':''}`,Array.from(name||'?')[0]?.toUpperCase()); n.setAttribute('aria-hidden','true'); return n; }
   function empty(title,description,action) { const box=el('div','empty-state'); box.append(icon('chat'),el('h3','',title),el('p','',description)); if(action)box.append(action); return box; }
   function toast(title,description,onClick) { const stack=document.getElementById('toast-stack'); if(!stack)return; const box=el('div','toast'); const body=el(onClick?'button':'div','toast-body'); if(onClick){body.type='button';body.onclick=()=>{onClick();box.remove();};} body.append(el('strong','',title),el('p','',description)); box.append(icon('bell'),body,button('알림 닫기',()=>box.remove(),'icon-button','x')); stack.append(box); while(stack.children.length>3)stack.firstElementChild.remove(); setTimeout(()=>box.remove(),8000); }
