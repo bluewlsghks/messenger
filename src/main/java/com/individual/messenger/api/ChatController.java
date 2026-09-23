@@ -1,101 +1,37 @@
 package com.individual.messenger.api;
 
-import com.individual.messenger.domain.Message;
-import com.individual.messenger.service.MessageService;
-import com.individual.messenger.service.OpenAiService;
+import com.individual.messenger.service.ChatMessagingService;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
+import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
-
-import java.util.List;
+import org.springframework.web.server.ResponseStatusException;
+import java.security.Principal;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 @Controller
 public class ChatController {
-
-    private static final String TOPIC_PREFIX = "/sub/chat/";
-    private static final String AI_BOT = "AI_BOT";
-
-    private final SimpMessageSendingOperations messaging;
-    private final MessageService messageService;
-    private final OpenAiService openAiService;
-    private final Executor aiExecutor;
-
-    public ChatController(SimpMessageSendingOperations messaging,
-                          MessageService messageService,
-                          OpenAiService openAiService,
-                          Executor aiExecutor) {
-        this.messaging = messaging;
-        this.messageService = messageService;
-        this.openAiService = openAiService;
-        this.aiExecutor = aiExecutor;
-    }
+    private final ChatMessagingService chat;
+    public ChatController(ChatMessagingService chat) { this.chat = chat; }
 
     @MessageMapping("/chat.send")
-    public void onSend(@Payload Map<String, String> payload) {
-        String roomId = payload.get("roomId");
-        String senderId = payload.getOrDefault("senderId", "unknown");
-        String senderName = payload.getOrDefault("senderName", senderId);
-        String content = payload.getOrDefault("content", "");
-
-        // 1) 저장
-        Message saved = messageService.save(roomId, senderId, senderName, content);
-
-        // 2) 브로드캐스트
-        broadcast(roomId, saved);
-
-        // 3) "/ai"면 AI 처리 (무한루프 방지)
-        if (isAiCommand(content) && !AI_BOT.equals(senderId)) {
-            String question = extractAiQuestion(content);
-            if (!question.isBlank()) {
-                handleAiAsk(roomId, question);
-            }
-        }
+    public void onSend(@Payload Map<String, String> payload, Principal principal) {
+        chat.send(payload.get("roomId"), payload.get("content"), principal);
     }
-
     @MessageMapping("/ai.ask")
-    public void onAiAsk(@Payload Map<String, String> payload) {
-        String roomId = payload.get("roomId");
-        String content = payload.getOrDefault("content", "");
-
-        String question = extractAiQuestion(content);
-        if (question.isBlank()) return;
-
-        handleAiAsk(roomId, question);
+    public void onAiAsk(@Payload Map<String, String> payload, Principal principal) {
+        String content = payload.get("content");
+        if (content == null || content.isBlank()) throw new IllegalArgumentException("질문을 입력해 주세요.");
+        String text = content.strip();
+        if (!(text.equals("/ai") || text.startsWith("/ai ") || text.startsWith("/ai\n"))) text = "/ai " + text;
+        // Legacy endpoint now also persists the user's question, with server-derived identity.
+        chat.send(payload.get("roomId"), text, principal);
     }
-
-    private void handleAiAsk(String roomId, String question) {
-        CompletableFuture
-                .supplyAsync(() -> {
-                    List<Message> recent = messageService.findRecentMessages(roomId, 50);
-                    return openAiService.reply(recent, question);
-                }, aiExecutor)
-                .thenAccept(aiText -> {
-                    Message botSaved = messageService.save(roomId, AI_BOT, AI_BOT, aiText);
-                    broadcast(roomId, botSaved);
-                })
-                .exceptionally(ex -> {
-                    ex.printStackTrace();
-                    Message botSaved = messageService.save(roomId, AI_BOT, AI_BOT,
-                            "지금은 답변을 만들기 어렵네 😢 잠시 후 다시 시도해줘.");
-                    broadcast(roomId, botSaved);
-                    return null;
-                });
-    }
-
-    private void broadcast(String roomId, Message message) {
-        messaging.convertAndSend(TOPIC_PREFIX + roomId, message);
-    }
-
-    private boolean isAiCommand(String content) {
-        return content != null && content.startsWith("/ai");
-    }
-
-    private String extractAiQuestion(String content) {
-        if (content == null) return "";
-        return content.replaceFirst("^/ai\\s*", "").trim();
+    @MessageExceptionHandler({IllegalArgumentException.class, ResponseStatusException.class})
+    @SendToUser(value = "/queue/errors", broadcast = false)
+    public Map<String, String> invalidRequest(Exception exception) {
+        String message = exception instanceof ResponseStatusException status ? status.getReason() : exception.getMessage();
+        return Map.of("error", "CHAT_REJECTED", "message", message == null ? "요청이 거부되었습니다." : message);
     }
 }

@@ -3,40 +3,24 @@ package com.individual.messenger.service;
 import com.individual.messenger.domain.ReadCursor;
 import com.individual.messenger.domain.Room;
 import com.individual.messenger.repo.ReadCursorRepository;
-import com.individual.messenger.repo.RoomRepository;
+import com.individual.messenger.security.ChatAccessService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 
 @Service
 public class DmService {
-    private final RoomRepository roomRepo;
-    private final ReadCursorRepository cursorRepo;
-
-    public DmService(RoomRepository roomRepo, ReadCursorRepository cursorRepo) {
-        this.roomRepo = roomRepo; this.cursorRepo = cursorRepo;
+    private final RoomService rooms;
+    private final ReadCursorRepository cursors;
+    private final ChatAccessService access;
+    public DmService(RoomService rooms, ReadCursorRepository cursors, ChatAccessService access) {
+        this.rooms = rooms; this.cursors = cursors; this.access = access;
     }
-
-    @Transactional
-    public Room startDm(String a, String b) {
-        if (a.equals(b)) throw new IllegalArgumentException("Self DM policy");
-        String key = String.join("#", java.util.stream.Stream.of(a,b).sorted().toList());
-        return roomRepo.findByMembersKey(key).orElseGet(() -> {
-            Room room = Room.directOf(a, b);
-            Room saved = roomRepo.save(room);
-            cursorRepo.save(new ReadCursor(saved.id, a));
-            cursorRepo.save(new ReadCursor(saved.id, b));
-            return saved;
-        });
-    }
-
-    @Transactional
-    public ReadCursor markRead(String roomId, String username) {
-        ReadCursor cur = cursorRepo.findByRoomIdAndUsername(roomId, username)
-                .orElse(new ReadCursor(roomId, username));
+    public Room startDm(String me, String other) { return rooms.createOrGetDirect(me, other); }
+    public ReadCursor markRead(String roomId, String loginId) {
+        access.requireMember(roomId, () -> loginId);
+        ReadCursor cursor = cursors.findByRoomIdAndUsername(roomId, loginId).orElse(new ReadCursor(roomId, loginId));
         Instant now = Instant.now();
-        if (now.isAfter(cur.lastReadAt)) cur.lastReadAt = now;
-        return cursorRepo.save(cur);
+        if (cursor.lastReadAt == null || now.isAfter(cursor.lastReadAt)) cursor.lastReadAt = now;
+        return cursors.save(cursor);
     }
 }

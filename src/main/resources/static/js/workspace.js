@@ -1,0 +1,105 @@
+'use strict';
+document.addEventListener('DOMContentLoaded',async()=>{
+  if(document.body.dataset.page!=='workspace'||!Auth.requireLogin())return;
+  const $=id=>document.getElementById(id);const {el,button,avatar,icon}=UI;
+  let servers=[],rooms=[],friends=[],selectedServer=null,selectedRoom=null,view='friends',loadSerial=0,friendError=null,searchSerial=0;
+  const realtime=new Realtime();const notices=new NotificationCenter(realtime,event=>openNotice(event));const chat=new ChatPanel(realtime,notices);
+  function error(message){$('workspace-error').replaceChildren();$('workspace-error').hidden=!message;if(message){$('workspace-error').append(document.createTextNode(message),button('다시 시도',()=>reload(),'text-button'));}}
+  const count=id=>Number(notices.counts[id]||0);
+  function badge(n){const b=el('span','badge',n>99?'99+':String(n));b.hidden=!n;return b;}
+  function person(id){return id===Auth.getLoginId()?Auth.getUserName()||id:friends.find(f=>f.userId===id)?.userName||id;}
+  function roomName(room){return room.type==='DIRECT'?person((room.members||[]).find(id=>id!==Auth.getLoginId())||Auth.getLoginId()):(room.members||[]).filter(id=>id!==Auth.getLoginId()).map(person).join(', ')||'그룹 대화';}
+  function mobile(open){$('sidebar').classList.toggle('open',open);$('sidebar-backdrop').hidden=!open;$('mobile-menu').setAttribute('aria-expanded',String(open));}
+  function navigate(url){if(location.pathname+location.search!==url)history.pushState({},'',url);route();mobile(false);}
+  function renderRail(){
+    $('server-list').replaceChildren();$('home-button').classList.toggle('active',!selectedServer);const dmTotal=rooms.reduce((sum,r)=>sum+count(r.id),0);$('home-unread').textContent=dmTotal>99?'99+':String(dmTotal);$('home-unread').hidden=!dmTotal;
+    for(const server of servers){const b=button(server.name,()=>navigate(`/servers?server=${encodeURIComponent(server.id)}`),'rail-button');b.replaceChildren(document.createTextNode(Array.from(server.name||'?').slice(0,2).join('')));b.classList.toggle('active',server.id===selectedServer);const n=server.channels.reduce((sum,c)=>sum+count(c.id),0);if(n){const mark=badge(n);mark.classList.add('rail-badge');b.append(mark);}$('server-list').append(b);}
+  }
+  function renderNavigation(){
+    const server=servers.find(s=>s.id===selectedServer);$('sidebar-title').textContent=server?server.name:'다이렉트 메시지';$('navigation-heading').textContent=server?'텍스트 채널':'다이렉트 메시지';$('friends-nav').hidden=!!server;$('friends-nav').classList.toggle('selected',view==='friends');$('friend-total').textContent=String(friends.length);$('server-tools').hidden=!server;$('invite-members').hidden=!server||server.ownerId!==Auth.getLoginId();$('add-conversation').hidden=!!server&&server.ownerId!==Auth.getLoginId();$('add-conversation').setAttribute('aria-label',server?'채널 만들기':'새 대화 만들기');$('add-conversation').title=server?'채널 만들기':'새 대화 만들기';
+    const query=$('navigation-search').value.trim().toLocaleLowerCase();const list=$('navigation-list');list.replaceChildren();
+    if(server){for(const channel of server.channels.filter(c=>c.name.toLocaleLowerCase().includes(query))){const b=button(channel.name,()=>navigate(`/servers?server=${encodeURIComponent(server.id)}&channel=${encodeURIComponent(channel.id)}`),'conversation-link channel');b.replaceChildren(icon('hash'),el('span','conversation-info',channel.name));b.append(badge(count(channel.id)));b.classList.toggle('selected',selectedRoom===channel.id);list.append(b);}}
+    else{for(const room of rooms.filter(r=>roomName(r).toLocaleLowerCase().includes(query))){const b=button(roomName(room),()=>navigate(`/chat/${encodeURIComponent(room.id)}`),'conversation-link');b.replaceChildren(avatar(roomName(room)));const info=el('span','conversation-info');info.append(el('strong','',roomName(room)),el('small','',room.type==='DIRECT'?'다이렉트 메시지':`${room.members.length}명의 그룹 대화`));b.append(info,badge(count(room.id)));b.classList.toggle('selected',selectedRoom===room.id);list.append(b);}}
+    if(!list.children.length)list.append(el('p','muted padding',query?'검색 결과가 없습니다.':server?'아직 채널이 없습니다.':'새 대화를 시작해 보세요.'));
+    renderRail();
+  }
+  function renderFriends(){
+    const list=$('friend-list');list.replaceChildren();$('friend-count').textContent=String(friends.length);if(friendError){list.append(UI.empty('친구 목록을 불러오지 못했어요',friendError,button('다시 시도',()=>loadFriends())));return;}
+    const query=$('friend-search').value.trim().toLocaleLowerCase();const shown=friends.filter(f=>`${f.userName} ${f.userId}`.toLocaleLowerCase().includes(query));
+    for(const friend of shown){const row=el('div','friend-row');const info=el('div','friend-info');info.append(el('strong','',friend.userName||friend.userId),el('small','',`@${friend.userId}`));const actions=el('div','friend-actions');actions.append(button(`${friend.userName||friend.userId}님에게 메시지`,()=>startDm(friend.userId),'icon-button','chat'),button(`${friend.userName||friend.userId}님 친구 삭제`,()=>removeFriend(friend),'icon-button','trash'));row.append(avatar(friend.userName||friend.userId),info,actions);list.append(row);}
+    if(!shown.length)list.append(UI.empty(query?'검색 결과가 없어요':'아직 등록된 친구가 없어요',query?'다른 이름이나 아이디로 검색해 보세요.':'아이디로 친구를 추가하고 첫 대화를 시작해 보세요.',query?null:button('친구 추가',addFriend,'primary','plus')));
+  }
+  async function loadFriends(){try{friends=await Auth.request('/api/friends');friendError=null;}catch(e){friendError=e.message;}renderFriends();renderNavigation();}
+  async function reload(){const serial=++loadSerial;const results=await Promise.allSettled([Auth.request('/api/servers'),Auth.request('/api/rooms/my'),Auth.request('/api/friends')]);if(serial!==loadSerial)return;if(results[0].status==='fulfilled')servers=results[0].value;if(results[1].status==='fulfilled')rooms=results[1].value;if(results[2].status==='fulfilled'){friends=results[2].value;friendError=null;}else friendError=results[2].reason.message;const failure=results.slice(0,2).find(r=>r.status==='rejected');error(failure?failure.reason.message:null);renderFriends();route();notices.refresh();}
+  function route(){
+    const params=new URLSearchParams(location.search);selectedServer=null;selectedRoom=null;view='friends';let title='친구',subtitle='가까운 사람들과, 하나의 공간에서.',members=[];
+    if(location.pathname==='/servers'){
+      const server=servers.find(s=>s.id===params.get('server'))||(!params.get('server')?servers[0]:null);
+      if(server){selectedServer=server.id;const channel=server.channels.find(c=>c.id===params.get('channel'))||server.channels[0];if(channel){selectedRoom=channel.id;view='chat';title=channel.name;subtitle=server.name;}members=server.members||[];}
+    }else if(location.pathname.startsWith('/chat/')){
+      const id=decodeURIComponent(location.pathname.slice(6));const room=rooms.find(r=>r.id===id);if(room){selectedRoom=id;view='chat';title=roomName(room);subtitle=room.type==='DIRECT'?'다이렉트 메시지':`${room.members.length}명의 그룹 대화`;members=room.members;}
+      else{const server=servers.find(s=>s.channels.some(c=>c.id===id));if(server){selectedServer=server.id;selectedRoom=id;view='chat';title=server.channels.find(c=>c.id===id).name;subtitle=server.name;members=server.members;}else error('대화를 찾을 수 없습니다. 목록을 새로고침하거나 참여 권한을 확인해 주세요.');}
+    }
+    $('friends-view').hidden=view!=='friends';$('chat-view').hidden=view!=='chat';$('chat-title').textContent=title;$('view-subtitle').textContent=subtitle;$('view-icon').replaceChildren(icon(view==='friends'?'users':selectedServer?'hash':'chat'));document.querySelectorAll('.chat-action').forEach(b=>b.hidden=view!=='chat');$('members-panel').hidden=true;$('toggle-members').setAttribute('aria-expanded','false');$('search-panel').hidden=true;
+    if(view==='chat'){chat.open(selectedRoom,title);$('members-heading').textContent=`참여자 — ${members.length}`;$('member-list').replaceChildren();const owner=servers.find(s=>s.id===selectedServer)?.ownerId;for(const id of members){const row=el('div','member-row');const text=el('div');text.append(el('strong','',person(id)),el('small','',id===owner?'서버 소유자':id===Auth.getLoginId()?'나':'멤버'));row.append(avatar(person(id),id===Auth.getLoginId()),text);$('member-list').append(row);}renderMute();}
+    else{chat.close();if(location.pathname==='/servers'&&!servers.length)UI.toast('첫 서버를 만들어 보세요.','왼쪽 + 버튼으로 서버를 만들거나 초대 코드로 참여할 수 있어요.');}
+    renderNavigation();
+  }
+  async function openNotice(event){if(!rooms.some(r=>r.id===event.roomId)&&!servers.some(s=>s.channels.some(c=>c.id===event.roomId)))await reload();navigate(event.serverId?`/servers?server=${encodeURIComponent(event.serverId)}&channel=${encodeURIComponent(event.roomId)}`:`/chat/${encodeURIComponent(event.roomId)}`);}
+  function renderMute(){const muted=notices.muted(selectedRoom);$('mute-room').replaceChildren(icon(muted?'mute':'bell'));$('mute-room').setAttribute('aria-pressed',String(muted));$('mute-room').setAttribute('aria-label',muted?'이 대화 알림 켜기':'이 대화 알림 끄기');$('mute-room').title=muted?'이 대화 알림 켜기':'이 대화 알림 끄기';}
+  function addFriend(){UI.form({title:'친구 추가',description:'친구의 정확한 아이디를 입력하세요. 현재 버전은 추가 시 서로의 친구 목록에 등록됩니다.',fields:[{name:'friendId',label:'친구 아이디',placeholder:'예: jinhwan',maxLength:100}],submitText:'친구 추가',onSubmit:async values=>{await Auth.request('/api/friends',{method:'POST',body:JSON.stringify(values)});await loadFriends();UI.toast('친구를 추가했어요','이제 친구 목록에서 메시지를 보낼 수 있습니다.');}});}
+  function removeFriend(friend){UI.form({title:'친구를 삭제할까요?',description:`${friend.userName||friend.userId}님과 서로의 친구 목록에서 삭제됩니다. 기존 대화 내역은 유지됩니다.`,submitText:'친구 삭제',danger:true,onSubmit:async()=>{await Auth.request(`/api/friends?friendId=${encodeURIComponent(friend.userId)}`,{method:'DELETE'});await loadFriends();}});}
+  async function startDm(peerId){try{const room=await Auth.request('/api/rooms/dm',{method:'POST',body:JSON.stringify({peerId})});if(!rooms.some(r=>r.id===room.id))rooms.unshift(room);navigate(`/chat/${encodeURIComponent(room.id)}`);}catch(e){UI.toast('대화를 시작하지 못했어요',e.message);}}
+  function newDm(){UI.form({title:'새 메시지',description:'대화할 사람의 아이디를 입력하세요.',fields:[{name:'peerId',label:'사용자 아이디',maxLength:100}],submitText:'대화 시작',onSubmit:async values=>{const room=await Auth.request('/api/rooms/dm',{method:'POST',body:JSON.stringify(values)});if(!rooms.some(r=>r.id===room.id))rooms.unshift(room);navigate(`/chat/${encodeURIComponent(room.id)}`);}});}
+  function newGroup(){UI.form({title:'그룹 대화 만들기',description:'함께할 사용자 아이디를 쉼표로 구분해 입력하세요. 본인을 포함해 최소 3명입니다.',fields:[{name:'members',label:'참여자 아이디',placeholder:'alice, bob',maxLength:2000}],submitText:'대화 만들기',onSubmit:async values=>{const members=values.members.split(',').map(s=>s.trim()).filter(Boolean);const room=await Auth.request('/api/rooms/group',{method:'POST',body:JSON.stringify({members})});rooms.unshift(room);navigate(`/chat/${encodeURIComponent(room.id)}`);}});}
+  function newServer(){UI.form({title:'우리만의 서버 만들기',description:'관심사와 사람들을 한곳에 모아 보세요. #일반 채널이 함께 만들어집니다.',fields:[{name:'name',label:'서버 이름',placeholder:'예: 퇴근 후 개발 모임',maxLength:80}],submitText:'서버 만들기',onSubmit:async values=>{const server=await Auth.request('/api/servers',{method:'POST',body:JSON.stringify(values)});servers.push(server);navigate(`/servers?server=${encodeURIComponent(server.id)}`);}});}
+  function joinServer(){UI.form({title:'서버에 참여하기',description:'서버 소유자가 공유한 초대 코드를 입력하세요.',fields:[{name:'code',label:'초대 코드',maxLength:100}],submitText:'참여하기',onSubmit:async values=>{const server=await Auth.request('/api/servers/join',{method:'POST',body:JSON.stringify({code:values.code.trim()})});servers=servers.filter(s=>s.id!==server.id);servers.push(server);navigate(`/servers?server=${encodeURIComponent(server.id)}`);}});}
+  function newChannel(){const id=selectedServer;UI.form({title:'텍스트 채널 만들기',description:'채널 이름에는 문자, 숫자, -, _를 사용할 수 있어요.',fields:[{name:'name',label:'채널 이름',placeholder:'프로젝트-이야기',maxLength:40}],submitText:'채널 만들기',onSubmit:async values=>{const channel=await Auth.request(`/api/servers/${encodeURIComponent(id)}/channels`,{method:'POST',body:JSON.stringify(values)});const server=servers.find(s=>s.id===id);server.channels.push(channel);navigate(`/servers?server=${encodeURIComponent(id)}&channel=${encodeURIComponent(channel.id)}`);}});}
+  async function invite(){try{const invite=await Auth.request(`/api/servers/${encodeURIComponent(selectedServer)}/invites`,{method:'POST'});const form=UI.form({title:'친구를 초대하세요',description:`이 코드를 가진 사용자는 서버에 참여할 수 있습니다.\n만료: ${new Date(invite.expiresAt).toLocaleString('ko-KR')}`,fields:[{name:'code',label:'초대 코드',value:invite.code}],submitText:'닫기',onSubmit:async()=>{}});form.inputs.code.readOnly=true;form.inputs.code.select();form.form.prepend(button('초대 코드 복사',async()=>{try{await navigator.clipboard.writeText(invite.code);UI.toast('초대 코드를 복사했습니다.','참여할 사람에게 코드를 전달해 주세요.');}catch(_){form.inputs.code.select();UI.toast('코드를 선택했습니다.','Ctrl+C로 복사해 주세요.');}},'secondary','copy'));}catch(e){UI.toast('초대 코드를 만들지 못했어요',e.message);}}
+  async function toggleMembers() {
+    const panel=$('members-panel');
+    if(!panel.hidden){panel.hidden=true;$('toggle-members').setAttribute('aria-expanded','false');return;}
+    const roomId=selectedRoom, serverId=selectedServer;
+    panel.hidden=false;$('toggle-members').setAttribute('aria-expanded','true');
+    $('member-list').replaceChildren(el('p','muted padding','참여자를 불러오는 중…'));
+    try {
+      let members=[], owner=null;
+      if(serverId){
+        const fresh=await Auth.request(`/api/servers/${encodeURIComponent(serverId)}`);
+        if(selectedRoom!==roomId||selectedServer!==serverId||panel.hidden)return;
+        servers=servers.map(server=>server.id===serverId?fresh:server);
+        members=fresh.members||[];owner=fresh.ownerId;
+        renderNavigation();
+      }else members=rooms.find(room=>room.id===roomId)?.members||[];
+      if(selectedRoom!==roomId||panel.hidden)return;
+      $('members-heading').textContent=`참여자 — ${members.length}`;
+      $('member-list').replaceChildren();
+      for(const id of members){
+        const row=el('div','member-row'),text=el('div');
+        text.append(el('strong','',person(id)),el('small','',id===owner?'서버 소유자':id===Auth.getLoginId()?'나':'멤버'));
+        row.append(avatar(person(id),id===Auth.getLoginId()),text);$('member-list').append(row);
+      }
+    }catch(e){
+      if(selectedRoom!==roomId||panel.hidden)return;
+      $('member-list').replaceChildren(UI.empty('참여자를 불러오지 못했어요',e.message,button('다시 시도',()=>{panel.hidden=true;toggleMembers();})));
+    }
+  }
+  function settings(){
+    const dialog=UI.form({title:'사용자 설정',description:'이 브라우저에서 사용할 화면과 알림을 설정합니다.',fields:[{name:'userName',label:'표시 이름',value:Auth.getUserName(),maxLength:40},{name:'theme',label:'화면 테마',type:'select',value:notices.prefs.theme,options:[['dark','다크'],['light','라이트']]}],onSubmit:async values=>{const user=await Auth.request('/api/users/me',{method:'PATCH',body:JSON.stringify({userName:values.userName})});Auth.setAuth(user);$('my-name').textContent=user.userName;$('my-avatar').textContent=Array.from(user.userName)[0];notices.prefs.theme=values.theme;notices.save();renderFriends();renderNavigation();}});
+    const extra=el('div');extra.append(el('div','settings-section','NOTIFICATIONS'));
+    function toggle(label,key,onChange){const row=el('label','setting-row',label);const input=el('input');input.type='checkbox';input.checked=!!notices.prefs[key];input.onchange=()=>{notices.prefs[key]=input.checked;notices.save();onChange?.(input.checked);};row.append(input);extra.append(row);}
+    toggle('앱 안 팝업 알림','inApp');toggle('알림 내용 미리보기','preview');toggle('알림음','sound',enabled=>{if(enabled)notices.enableSound();});
+    const desktop=button(notices.prefs.desktop?'데스크톱 알림 끄기':'데스크톱 알림 허용',async()=>{if(notices.prefs.desktop){notices.prefs.desktop=false;notices.save();}else await notices.enableDesktop();desktop.textContent=notices.prefs.desktop?'데스크톱 알림 끄기':'데스크톱 알림 허용';},'secondary','bell');extra.append(desktop,el('p','settings-help','데스크톱 알림은 브라우저 권한과 HTTPS(또는 localhost)가 필요합니다. 탭을 닫은 상태의 푸시는 제공하지 않습니다. 소리는 브라우저가 허용한 뒤 재생되며, 다른 탭에서는 다시 켜야 할 수 있습니다.'),el('p','settings-help','알림 설정은 즉시 저장됩니다. 미리보기는 기본적으로 꺼져 있습니다. 대화 상단의 종 아이콘으로 해당 대화만 알림을 끌 수 있습니다.'),button('로그아웃',Auth.logout,'secondary','logout'));
+    dialog.form.insertBefore(extra,dialog.form.querySelector('.dialog-error'));
+  }
+  $('home-button').onclick=()=>navigate('/home');$('friends-nav').onclick=()=>navigate('/friends');$('create-server').onclick=newServer;$('welcome-server').onclick=newServer;$('join-server').onclick=joinServer;$('add-conversation').onclick=()=>selectedServer?newChannel():newDm();$('welcome-dm').onclick=newDm;$('add-friend').onclick=addFriend;$('create-group').onclick=newGroup;$('invite-members').onclick=invite;$('refresh-server').onclick=reload;$('friend-search').oninput=renderFriends;$('navigation-search').oninput=renderNavigation;
+  $('open-settings').onclick=settings;$('rail-settings').onclick=settings;$('enable-desktop').onclick=settings;$('mute-room').onclick=()=>{notices.toggleMute(selectedRoom);renderMute();};
+  $('open-notifications').onclick=()=>{$('notification-panel').hidden=!$('notification-panel').hidden;};$('close-notifications').onclick=()=>{$('notification-panel').hidden=true;};$('clear-notifications').onclick=()=>notices.clear();$('toggle-members').onclick=toggleMembers;$('close-members').onclick=()=>{$('members-panel').hidden=true;$('toggle-members').setAttribute('aria-expanded','false');};$('mobile-menu').onclick=()=>mobile(!$('sidebar').classList.contains('open'));$('sidebar-backdrop').onclick=()=>mobile(false);
+  $('search-messages').onclick=()=>{$('search-panel').hidden=false;$('search-query').focus();};$('close-search').onclick=()=>{$('search-panel').hidden=true;};
+  $('search-form').onsubmit=async event=>{event.preventDefault();if(!selectedRoom)return;const serial=++searchSerial;const roomId=selectedRoom;const results=$('search-results');results.replaceChildren(el('p','muted padding','검색 중…'));try{const messages=await Auth.request(`/api/messages/${encodeURIComponent(roomId)}/search?q=${encodeURIComponent($('search-query').value)}`);if(serial!==searchSerial||roomId!==selectedRoom)return;results.replaceChildren();for(const message of messages){const row=el('article','search-result');row.append(el('strong','',message.senderName||message.senderId),el('time','',new Date(message.createdAt).toLocaleString('ko-KR')),el('p','',message.content));results.append(row);}if(!messages.length)results.append(el('p','muted padding','검색 결과가 없습니다.'));}catch(e){if(serial===searchSerial)results.replaceChildren(el('p','dialog-error',e.message));}};
+  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();mobile(window.innerWidth<=760);$('navigation-search').focus();}if(event.key==='Escape'&&!$('app-dialog').open){mobile(false);$('notification-panel').hidden=true;$('search-panel').hidden=true;$('emoji-picker').hidden=true;}});window.addEventListener('popstate',route);
+  realtime.addEventListener('state',event=>{$('connection-state').textContent=event.detail.label;$('connection-state').classList.toggle('connected',event.detail.ready);});
+  let reloadTimer;realtime.addEventListener('notice',event=>{if(!rooms.some(r=>r.id===event.detail.roomId)&&!servers.some(s=>s.channels.some(c=>c.id===event.detail.roomId))){clearTimeout(reloadTimer);reloadTimer=setTimeout(reload,300);}});
+  notices.addEventListener('counts',renderNavigation);
+  try{const me=await Auth.request('/api/users/me');Auth.setAuth(me);$('my-name').textContent=me.userName;$('my-avatar').textContent=Array.from(me.userName||me.id)[0];await reload();realtime.start();}catch(e){error(e.message);}
+});

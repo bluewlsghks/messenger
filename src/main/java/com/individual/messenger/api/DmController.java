@@ -1,38 +1,36 @@
 package com.individual.messenger.api;
 
-import com.individual.messenger.domain.ReadCursor;
-import com.individual.messenger.domain.Room;
-import com.individual.messenger.service.DmService;
-import com.individual.messenger.service.MessageService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import com.individual.messenger.domain.Message;
-
+import com.individual.messenger.security.ChatAccessService;
+import com.individual.messenger.service.ChatMessagingService;
+import com.individual.messenger.service.DmService;
+import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dm")
 public class DmController {
-    private final DmService dmService;
-    private final MessageService messageService;
-    public DmController(DmService dmService, MessageService messageService) {
-        this.dmService = dmService; this.messageService = messageService;
+    private final DmService dm;
+    private final ChatMessagingService chat;
+    private final ChatAccessService access;
+    public DmController(DmService dm, ChatMessagingService chat, ChatAccessService access) {
+        this.dm = dm; this.chat = chat; this.access = access;
     }
-
+    // Legacy clients may still submit me, but it is deliberately ignored on all three routes.
     @PostMapping("/start")
-    public ResponseEntity<Map<String, Object>> start(@RequestParam String me, @RequestParam String other) {
-        Room room = dmService.startDm(me, other);
-        return ResponseEntity.ok(Map.of("roomId", room.id, "members", room.members));
+    public Map<String, Object> start(Principal actor, @RequestParam String other) {
+        var room = dm.startDm(access.actor(actor).loginId, other);
+        return Map.of("roomId", room.id, "members", room.members);
     }
-
     @PostMapping("/{roomId}/read")
-    public ResponseEntity<Map<String, Object>> read(@PathVariable String roomId, @RequestParam String me) {
-        ReadCursor cur = dmService.markRead(roomId, me);
-        return ResponseEntity.ok(Map.of("roomId", roomId, "me", me, "lastReadAt", cur.lastReadAt));
+    public Map<String, Object> read(Principal actor, @PathVariable String roomId) {
+        String me = access.actor(actor).loginId;
+        var cursor = dm.markRead(roomId, me);
+        return Map.of("roomId", roomId, "me", me, "lastReadAt", cursor.lastReadAt);
     }
-
     @PostMapping("/{roomId}/send")
-    public ResponseEntity<Message> send(@PathVariable String roomId, @RequestParam String me, @RequestParam String content) {
-        return ResponseEntity.ok(messageService.send(roomId, me, content));
+    public Message send(Principal actor, @PathVariable String roomId, @RequestParam String content) {
+        return chat.send(roomId, content, actor);
     }
 }
