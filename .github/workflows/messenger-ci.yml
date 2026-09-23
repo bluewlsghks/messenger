@@ -38,11 +38,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check browser JavaScript and IME handling
+      - name: Check browser JavaScript, IME handling and safe rendering
         run: |
-          node --check src/main/resources/static/js/conversation.js
-          node --check src/main/resources/static/js/servers.js
-          node --test src/test/js/conversation.test.cjs
+          for file in src/main/resources/static/js/*.js; do node --check "$file"; done
+          node --test src/test/js/*.test.cjs
       - name: Unit tests, MongoDB integration tests and application build
         run: bash ./gradlew test bootJar --no-daemon
       - name: Summarize Java test results

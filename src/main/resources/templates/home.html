@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<html lang="ko">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>메신저 홈</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="data:," />
     <script src="/js/auth.js" defer></script>
+    <script src="/js/friends.js" defer></script>
     <script src="/js/home.js" defer></script>
 </head>
 <body class="bg-zinc-900 text-zinc-100 h-screen flex flex-col">
@@ -24,10 +25,10 @@
             <h2 class="text-base font-semibold mb-2">그룹방 생성</h2>
             <p class="text-sm text-zinc-400 mb-2">쉼표(,)로 멤버 ID를 입력하세요. (본인 자동 포함 · 최소 3명)</p>
             <div class="flex gap-2">
-                <input id="groupMembers" class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none" placeholder="예: LEE, CHA, PARK" />
+                <input id="groupMembers" class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none" placeholder="예: LEE, CHA, PARK">
                 <button id="createGroupBtn" class="bg-purple-600 px-4 py-2 rounded-lg text-white">생성</button>
             </div>
-            <p id="groupMsg" class="text-sm text-zinc-400 mt-2"></p>
+            <p id="groupMsg" class="text-sm text-zinc-400 mt-2" role="status"></p>
         </div>
         <div class="space-y-3" id="roomList"><p class="text-zinc-400 text-sm text-center">불러오는 중...</p></div>
     </section>
@@ -35,11 +36,11 @@
         <div class="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700">
             <h2 class="text-base font-semibold mb-3">아이디로 친구 추가</h2>
             <div class="flex gap-2">
-                <input id="friendId" class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none" placeholder="친구 ID (예: LEE)" />
+                <input id="friendId" class="flex-1 bg-zinc-800 text-zinc-100 rounded-lg p-2 outline-none" placeholder="친구 ID (예: LEE)">
                 <button id="addFriendBtn" class="bg-sky-600 px-4 py-2 rounded-lg text-white">추가</button>
                 <button id="startDmBtn" class="bg-emerald-600 px-4 py-2 rounded-lg text-white">DM</button>
             </div>
-            <p id="friendMsg" class="text-sm text-zinc-400 mt-2"></p>
+            <p id="friendMsg" class="text-sm text-zinc-400 mt-2" role="status"></p>
         </div>
         <div class="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700">
             <div class="flex items-center justify-between mb-3">
