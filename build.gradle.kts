@@ -1,18 +1,13 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     id("org.springframework.boot") version "3.3.3"
     id("io.spring.dependency-management") version "1.1.5"
-    kotlin("jvm") version "1.9.24"           // Kotlin DSL only
-    kotlin("plugin.spring") version "1.9.24" // Kotlin DSL only
+    kotlin("jvm") version "1.9.24"
+    kotlin("plugin.spring") version "1.9.24"
 }
-
 group = "com.individual"
 version = "0.0.1-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_21
-
 repositories { mavenCentral() }
-
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -24,23 +19,18 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("com.openai:openai-java:4.16.1")
-
-    // Lombok
+    // Browser libraries are served locally from the jar; the workspace needs no CDN or npm build.
+    runtimeOnly("org.webjars.npm:stomp__stompjs:7.3.0") { isTransitive = false }
+    runtimeOnly("org.webjars.npm:sockjs-client:1.6.1") { isTransitive = false }
     compileOnly("org.projectlombok:lombok:1.18.32")
     annotationProcessor("org.projectlombok:lombok:1.18.32")
     testCompileOnly("org.projectlombok:lombok:1.18.32")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.32")
-
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     implementation("org.springframework.security:spring-security-crypto")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
-
-
-
-
 }
-
 tasks.withType<Test> { useJUnitPlatform() }

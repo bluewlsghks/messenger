@@ -2,39 +2,40 @@ package com.individual.messenger.api;
 
 import com.individual.messenger.crypto.CryptoService;
 import com.individual.messenger.domain.User;
-import com.individual.messenger.repo.UserRepository;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import com.individual.messenger.security.ChatAccessService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.*;
 import org.springframework.web.bind.annotation.*;
-
+import java.security.Principal;
 import java.time.Instant;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
-    private final UserRepository userRepo;
+    private final ChatAccessService access;
     private final CryptoService crypto;
-
-    public UserController(UserRepository userRepo, CryptoService crypto) {
-        this.userRepo = userRepo; this.crypto = crypto;
+    private final MongoTemplate mongo;
+    public UserController(ChatAccessService access, CryptoService crypto, MongoTemplate mongo) {
+        this.access = access; this.crypto = crypto; this.mongo = mongo;
     }
-
     @GetMapping("/me")
-    public ResponseEntity<?> me(Authentication auth) {
-        // JwtAuthFilter가 principal(username=loginId)을 세팅해줌
-        String loginId = auth.getName();
-        User u = userRepo.findByLoginId(loginId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        String phone = (u.phoneEnc != null && !u.phoneEnc.isBlank())
-                ? crypto.decryptString(u.phoneEnc) : null;
-
-        return ResponseEntity.ok(Map.of(
-                "id", u.loginId,
-                "userName", u.userName,
-                "phoneNumber", phone,
-                "createdAt", u.createdAt != null ? u.createdAt : Instant.EPOCH
-        ));
+    public Profile me(Principal principal) {
+        User user = access.actor(principal);
+        String phone = user.phoneEnc == null || user.phoneEnc.isBlank() ? null : crypto.decryptString(user.phoneEnc);
+        // Map.of rejects null; phone-less legacy users are valid.
+        return new Profile(user.loginId, user.userName == null ? user.loginId : user.userName, phone, user.createdAt);
     }
+    @PatchMapping("/me")
+    public Profile rename(Principal principal, @Valid @RequestBody Rename request) {
+        User user = access.actor(principal);
+        String name = request.userName().strip();
+        if (name.isBlank() || name.chars().anyMatch(Character::isISOControl)) throw new IllegalArgumentException("표시 이름을 확인해 주세요.");
+        mongo.updateFirst(Query.query(Criteria.where("id").is(user.mongoId)), new Update().set("userName", name), User.class);
+        return new Profile(user.loginId, name, null, user.createdAt);
+    }
+    public record Profile(String id, String userName, String phoneNumber, Instant createdAt) {}
+    public record Rename(@NotBlank @Size(max = 40) String userName) {}
 }
