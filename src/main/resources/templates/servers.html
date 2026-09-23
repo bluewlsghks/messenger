@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>서버 · Messenger</title>
+  <link rel="stylesheet" href="/css/messenger.css">
+  <script defer src="/js/auth.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script defer src="/js/conversation.js"></script><script defer src="/js/servers.js"></script>
+</head>
+<body class="app-layout" data-page="servers">
+  <nav class="server-rail" aria-label="서버 선택">
+    <a class="server-icon" href="/home" title="친구와 DM" aria-label="친구와 DM">DM</a>
+    <hr><div id="server-list"></div>
+    <button id="create-server" class="server-icon" title="서버 만들기" aria-label="서버 만들기">+</button>
+    <button id="join-server" class="server-icon" title="초대로 참여" aria-label="초대로 참여">↗</button>
+  </nav>
+  <aside class="channel-sidebar">
+    <header><h1 id="server-name">내 서버</h1></header>
+    <p id="app-error" class="error" role="alert" hidden></p>
+    <div class="channel-tools"><strong>텍스트 채널</strong><button id="create-channel" title="채널 만들기" aria-label="채널 만들기" hidden>+</button></div>
+    <nav id="channel-list" aria-label="텍스트 채널"></nav>
+    <div class="sidebar-bottom"><button id="invite-member" hidden>멤버 초대</button><span id="my-name"></span><button id="logoutBtn">로그아웃</button></div>
+  </aside>
+  <main class="conversation">
+    <header class="chat-header"><h2 id="chat-title">서버를 선택하세요</h2><span id="connection-state" role="status">대기 중</span></header>
+    <p id="chat-error" class="error" role="alert" hidden></p>
+    <div class="history-tools"><button id="load-older" disabled>이전 메시지 더 보기</button></div>
+    <div id="message-list" class="message-list" aria-label="대화 내역" tabindex="0"><p class="empty">왼쪽 + 버튼으로 서버를 만들거나 초대 코드로 참여하세요.</p></div>
+    <form id="message-form" class="composer"><label class="sr-only" for="message-input">메시지</label><textarea id="message-input" maxlength="4000" rows="2" placeholder="메시지 입력 · Enter 전송 / Shift+Enter 줄바꿈" disabled></textarea><button id="send-message" type="submit" disabled>전송</button></form>
+  </main>
+  <aside class="member-sidebar"><h2>멤버 <span id="member-count">0</span></h2><div id="member-list"></div><p class="muted">현재 버전은 텍스트 채널을 지원합니다. 음성·화면 공유는 아직 지원하지 않습니다.</p></aside>
+  <dialog id="server-dialog"><form id="dialog-form"><h2 id="dialog-title"></h2><p id="dialog-description" class="muted"></p><label id="dialog-label" for="dialog-input">이름</label><input id="dialog-input" autocomplete="off" required><p id="dialog-error" class="error" role="alert" hidden></p><div class="dialog-actions"><button id="dialog-cancel" type="button">닫기</button><button id="dialog-submit" type="submit">확인</button></div></form></dialog>
+</body>
+</html>

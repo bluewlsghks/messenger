@@ -1,0 +1,54 @@
+name: Messenger CI
+on:
+  push:
+    branches: [master, 'feat/discord-server-channels']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: messenger-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MONGODB_TEST_URI: mongodb://localhost:27017
+      MONGODB_URI: mongodb://localhost:27017/messenger_ci
+      # Public disposable test fixtures, NOT application credentials.
+      APP_AES_KEY_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      APP_JWT_SECRET_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      APP_OPENAI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check browser JavaScript and IME handling
+        run: |
+          node --check src/main/resources/static/js/conversation.js
+          node --check src/main/resources/static/js/servers.js
+          node --test src/test/js/conversation.test.cjs
+      - name: Unit tests, MongoDB integration tests and application build
+        run: bash ./gradlew test bootJar --no-daemon
+      - name: Test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: messenger-test-reports
+          path: build/reports/tests/test
+          if-no-files-found: ignore
