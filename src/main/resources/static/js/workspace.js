@@ -56,6 +56,34 @@ document.addEventListener('DOMContentLoaded',async()=>{
   function joinServer(){UI.form({title:'서버에 참여하기',description:'서버 소유자가 공유한 초대 코드를 입력하세요.',fields:[{name:'code',label:'초대 코드',maxLength:100}],submitText:'참여하기',onSubmit:async values=>{const server=await Auth.request('/api/servers/join',{method:'POST',body:JSON.stringify({code:values.code.trim()})});servers=servers.filter(s=>s.id!==server.id);servers.push(server);navigate(`/servers?server=${encodeURIComponent(server.id)}`);}});}
   function newChannel(){const id=selectedServer;UI.form({title:'텍스트 채널 만들기',description:'채널 이름에는 문자, 숫자, -, _를 사용할 수 있어요.',fields:[{name:'name',label:'채널 이름',placeholder:'프로젝트-이야기',maxLength:40}],submitText:'채널 만들기',onSubmit:async values=>{const channel=await Auth.request(`/api/servers/${encodeURIComponent(id)}/channels`,{method:'POST',body:JSON.stringify(values)});const server=servers.find(s=>s.id===id);server.channels.push(channel);navigate(`/servers?server=${encodeURIComponent(id)}&channel=${encodeURIComponent(channel.id)}`);}});}
   async function invite(){try{const invite=await Auth.request(`/api/servers/${encodeURIComponent(selectedServer)}/invites`,{method:'POST'});const form=UI.form({title:'친구를 초대하세요',description:`이 코드를 가진 사용자는 서버에 참여할 수 있습니다.\n만료: ${new Date(invite.expiresAt).toLocaleString('ko-KR')}`,fields:[{name:'code',label:'초대 코드',value:invite.code}],submitText:'닫기',onSubmit:async()=>{}});form.inputs.code.readOnly=true;form.inputs.code.select();form.form.prepend(button('초대 코드 복사',async()=>{try{await navigator.clipboard.writeText(invite.code);UI.toast('초대 코드를 복사했습니다.','참여할 사람에게 코드를 전달해 주세요.');}catch(_){form.inputs.code.select();UI.toast('코드를 선택했습니다.','Ctrl+C로 복사해 주세요.');}},'secondary','copy'));}catch(e){UI.toast('초대 코드를 만들지 못했어요',e.message);}}
+  async function toggleMembers() {
+    const panel=$('members-panel');
+    if(!panel.hidden){panel.hidden=true;$('toggle-members').setAttribute('aria-expanded','false');return;}
+    const roomId=selectedRoom, serverId=selectedServer;
+    panel.hidden=false;$('toggle-members').setAttribute('aria-expanded','true');
+    $('member-list').replaceChildren(el('p','muted padding','참여자를 불러오는 중…'));
+    try {
+      let members=[], owner=null;
+      if(serverId){
+        const fresh=await Auth.request(`/api/servers/${encodeURIComponent(serverId)}`);
+        if(selectedRoom!==roomId||selectedServer!==serverId||panel.hidden)return;
+        servers=servers.map(server=>server.id===serverId?fresh:server);
+        members=fresh.members||[];owner=fresh.ownerId;
+        renderNavigation();
+      }else members=rooms.find(room=>room.id===roomId)?.members||[];
+      if(selectedRoom!==roomId||panel.hidden)return;
+      $('members-heading').textContent=`참여자 — ${members.length}`;
+      $('member-list').replaceChildren();
+      for(const id of members){
+        const row=el('div','member-row'),text=el('div');
+        text.append(el('strong','',person(id)),el('small','',id===owner?'서버 소유자':id===Auth.getLoginId()?'나':'멤버'));
+        row.append(avatar(person(id),id===Auth.getLoginId()),text);$('member-list').append(row);
+      }
+    }catch(e){
+      if(selectedRoom!==roomId||panel.hidden)return;
+      $('member-list').replaceChildren(UI.empty('참여자를 불러오지 못했어요',e.message,button('다시 시도',()=>{panel.hidden=true;toggleMembers();})));
+    }
+  }
   function settings(){
     const dialog=UI.form({title:'사용자 설정',description:'이 브라우저에서 사용할 화면과 알림을 설정합니다.',fields:[{name:'userName',label:'표시 이름',value:Auth.getUserName(),maxLength:40},{name:'theme',label:'화면 테마',type:'select',value:notices.prefs.theme,options:[['dark','다크'],['light','라이트']]}],onSubmit:async values=>{const user=await Auth.request('/api/users/me',{method:'PATCH',body:JSON.stringify({userName:values.userName})});Auth.setAuth(user);$('my-name').textContent=user.userName;$('my-avatar').textContent=Array.from(user.userName)[0];notices.prefs.theme=values.theme;notices.save();renderFriends();renderNavigation();}});
     const extra=el('div');extra.append(el('div','settings-section','NOTIFICATIONS'));
@@ -66,7 +94,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   }
   $('home-button').onclick=()=>navigate('/home');$('friends-nav').onclick=()=>navigate('/friends');$('create-server').onclick=newServer;$('welcome-server').onclick=newServer;$('join-server').onclick=joinServer;$('add-conversation').onclick=()=>selectedServer?newChannel():newDm();$('welcome-dm').onclick=newDm;$('add-friend').onclick=addFriend;$('create-group').onclick=newGroup;$('invite-members').onclick=invite;$('refresh-server').onclick=reload;$('friend-search').oninput=renderFriends;$('navigation-search').oninput=renderNavigation;
   $('open-settings').onclick=settings;$('rail-settings').onclick=settings;$('enable-desktop').onclick=settings;$('mute-room').onclick=()=>{notices.toggleMute(selectedRoom);renderMute();};
-  $('open-notifications').onclick=()=>{$('notification-panel').hidden=!$('notification-panel').hidden;};$('close-notifications').onclick=()=>{$('notification-panel').hidden=true;};$('clear-notifications').onclick=()=>notices.clear();$('toggle-members').onclick=()=>{$('members-panel').hidden=!$('members-panel').hidden;$('toggle-members').setAttribute('aria-expanded',String(!$('members-panel').hidden));};$('close-members').onclick=()=>{$('members-panel').hidden=true;$('toggle-members').setAttribute('aria-expanded','false');};$('mobile-menu').onclick=()=>mobile(!$('sidebar').classList.contains('open'));$('sidebar-backdrop').onclick=()=>mobile(false);
+  $('open-notifications').onclick=()=>{$('notification-panel').hidden=!$('notification-panel').hidden;};$('close-notifications').onclick=()=>{$('notification-panel').hidden=true;};$('clear-notifications').onclick=()=>notices.clear();$('toggle-members').onclick=toggleMembers;$('close-members').onclick=()=>{$('members-panel').hidden=true;$('toggle-members').setAttribute('aria-expanded','false');};$('mobile-menu').onclick=()=>mobile(!$('sidebar').classList.contains('open'));$('sidebar-backdrop').onclick=()=>mobile(false);
   $('search-messages').onclick=()=>{$('search-panel').hidden=false;$('search-query').focus();};$('close-search').onclick=()=>{$('search-panel').hidden=true;};
   $('search-form').onsubmit=async event=>{event.preventDefault();if(!selectedRoom)return;const serial=++searchSerial;const roomId=selectedRoom;const results=$('search-results');results.replaceChildren(el('p','muted padding','검색 중…'));try{const messages=await Auth.request(`/api/messages/${encodeURIComponent(roomId)}/search?q=${encodeURIComponent($('search-query').value)}`);if(serial!==searchSerial||roomId!==selectedRoom)return;results.replaceChildren();for(const message of messages){const row=el('article','search-result');row.append(el('strong','',message.senderName||message.senderId),el('time','',new Date(message.createdAt).toLocaleString('ko-KR')),el('p','',message.content));results.append(row);}if(!messages.length)results.append(el('p','muted padding','검색 결과가 없습니다.'));}catch(e){if(serial===searchSerial)results.replaceChildren(el('p','dialog-error',e.message));}};
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();mobile(window.innerWidth<=760);$('navigation-search').focus();}if(event.key==='Escape'&&!$('app-dialog').open){mobile(false);$('notification-panel').hidden=true;$('search-panel').hidden=true;$('emoji-picker').hidden=true;}});window.addEventListener('popstate',route);
