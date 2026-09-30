@@ -1,0 +1,26 @@
+# Allow-list: do not upload local credentials, IDE settings, tunnel logs, or backups.
+**
+!Dockerfile
+!.dockerignore
+!gradlew
+!build.gradle.kts
+!settings.gradle.kts
+!gradle/
+!gradle/wrapper/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!src/
+!src/main/
+!src/main/**
+!scripts/
+!scripts/start-render.sh
+# Exclude local overrides and key material even when nested under src/main.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.jks
+**/application-local.*
+**/application-dev.*
+**/application-secret*
