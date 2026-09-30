@@ -1,0 +1,19 @@
+name: Public access scripts
+on:
+  pull_request:
+    paths: ['scripts/**', 'src/test/powershell/**', '.env.public.example', '.github/workflows/public-access-ci.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse launcher and test helpers without opening public ports
+        shell: ${{ matrix.shell }}
+        run: ./src/test/powershell/PublicAccess.Tests.ps1
