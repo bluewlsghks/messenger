@@ -3,7 +3,7 @@
 > **복잡한 업무를 이해하고, 데이터가 정확하게 흐르는 백엔드를 만듭니다.**
 
 **7+ years · Java / Spring · ERP / MES · Real-time Systems**  
-📧 [bluewlsghks@gmail.com](mailto:bluewlsghks@gmail.com) · 🔗 [Notion 이력서](https://chipped-falcon-031.notion.site/Backend-Developer-7-years-2f542116bdcf80378ec1e085b2b3bf4f)
+📧 [bluewlsghks@gmail.com](mailto:bluewlsghks@gmail.com) · 🔗 [Notion 이력서](https://chipped-falcon-031.notion.site/Backend-Developer-7-years-3ed42116bdcf80408ee7ffb8d62d9e7c?source=copy_link)
 
 ## 👨‍💻 Developer Profile
 
