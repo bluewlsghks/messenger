@@ -1,0 +1,16 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {shouldNotify,mergeVersion,defaults}=require('../../main/resources/static/js/notifications.js');
+const {expiresAt}=require('../../main/resources/static/js/realtime.js');
+const event={type:'MESSAGE_CREATED',roomId:'r1',message:{id:'m1',senderId:'alice'}};
+const state={me:'bob',activeRoom:'r2',visible:true,focused:true,muted:[]};
+test('incoming messages in a different conversation notify',()=>assert.equal(shouldNotify(event,state),true));
+test('own messages never notify',()=>assert.equal(shouldNotify(event,{...state,me:'alice'}),false));
+test('focused and visible current conversation suppresses popups',()=>assert.equal(shouldNotify(event,{...state,activeRoom:'r1'}),false));
+test('background current conversation still notifies',()=>assert.equal(shouldNotify(event,{...state,activeRoom:'r1',visible:false}),true));
+test('muted conversation suppresses popups',()=>assert.equal(shouldNotify(event,{...state,muted:['r1']}),false));
+test('edits and deletions never masquerade as new messages',()=>{assert.equal(shouldNotify({...event,type:'MESSAGE_UPDATED'},state),false);assert.equal(shouldNotify({...event,type:'MESSAGE_DELETED'},state),false);});
+test('desktop notifications and content preview require opt-in',()=>{assert.equal(defaults.desktop,false);assert.equal(defaults.preview,false);assert.equal(defaults.sound,false);});
+test('older snapshots cannot resurrect a deleted message',()=>{const deleted={version:2,content:'',deletedAt:'now'};assert.equal(mergeVersion(deleted,{version:1,content:'secret'}),deleted);});
+test('message merges preserve read receipts',()=>assert.deepEqual(mergeVersion({version:0,readBy:['bob']},{version:1,readBy:['alice']}).readBy,['bob','alice']));
+test('invalid or absent token expiry is treated as expired',()=>{assert.equal(expiresAt('bad'),0);const token='x.'+Buffer.from(JSON.stringify({exp:123})).toString('base64url')+'.x';assert.equal(expiresAt(token),123000);});

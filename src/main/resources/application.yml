@@ -5,15 +5,15 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
-
 server:
   port: 8080
-
 app:
+  allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:8080,http://127.0.0.1:8080}
   crypto:
     aesKeyBase64: ${APP_AES_KEY_BASE64}
   jwt:
     secretBase64: ${APP_JWT_SECRET_BASE64}
     expiresMinutes: 120
   openai:
+    enabled: ${APP_OPENAI_ENABLED:false}
     api-key: ${OPENAI_API_KEY:}

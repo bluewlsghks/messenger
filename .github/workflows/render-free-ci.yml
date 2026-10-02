@@ -1,0 +1,67 @@
+name: Render free deployment checks
+on:
+  pull_request:
+    paths: ['Dockerfile', '.dockerignore', 'render.yaml', 'scripts/start-render.sh', 'src/main/**', 'build.gradle.kts', 'src/test/deployment/**', '.github/workflows/render-free-ci.yml']
+  push:
+    branches: [master]
+    paths: ['Dockerfile', '.dockerignore', 'render.yaml', 'scripts/start-render.sh', 'src/main/**', 'build.gradle.kts', 'src/test/deployment/**', '.github/workflows/render-free-ci.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docker-smoke:
+    # Standard hosted Linux runner in a public repo; never creates a Render/Atlas resource.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline free-plan and entrypoint guards
+        run: |
+          python3 -m pip install PyYAML==6.0.3
+          sh -n scripts/start-render.sh
+          python3 src/test/deployment/test_render_free.py
+      - name: Build the actual deployment image without credentials
+        run: docker build --pull -t messenger-free-ci .
+      - name: Real MongoDB 8 and 512 MB container smoke test
+        run: |
+          set -euo pipefail
+          mkdir -p build/render-free
+          cleanup() {
+            docker logs messenger-app > build/render-free/container.log 2>&1 || true
+            docker rm -f messenger-app messenger-mongo >/dev/null 2>&1 || true
+            docker network rm messenger-free-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker network create messenger-free-ci
+          docker run -d --name messenger-mongo --network messenger-free-ci mongo:8.0
+          for attempt in $(seq 1 60); do
+            if docker exec messenger-mongo mongosh --quiet --eval 'db.runCommand({ping:1}).ok' >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec messenger-mongo mongosh --quiet --eval 'db.runCommand({ping:1}).ok'
+          # Only disposable local fixtures. No real account, token, public tunnel or cloud API.
+          docker run -d --name messenger-app --network messenger-free-ci \
+            --memory=512m --memory-swap=512m --cpus=1 \
+            -p 127.0.0.1:18081:10000 \
+            -e PORT=10000 \
+            -e RENDER_EXTERNAL_URL=https://messenger-ci.onrender.com \
+            -e MONGODB_URI=mongodb://messenger-mongo:27017/messenger_ci \
+            -e APP_AES_KEY_BASE64=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY= \
+            -e APP_JWT_SECRET_BASE64=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY= \
+            -e APP_OPENAI_ENABLED=true \
+            -e SERVER_PORT=8081 -e SERVER_ADDRESS=127.0.0.1 \
+            -e APP_ALLOWED_ORIGINS=https://old.trycloudflare.com \
+            messenger-free-ci
+          python3 src/test/deployment/smoke_render.py | tee build/render-free/smoke.txt
+          test "$(docker inspect --format '{{.State.OOMKilled}}' messenger-app)" = false
+          test "$(docker inspect --format '{{.State.Running}}' messenger-app)" = true
+          docker stats --no-stream messenger-app > build/render-free/memory.txt
+          printf '\nMemory-limited smoke test only; NOT a free-tier CPU/load or live Render deployment test.\n' >> build/render-free/memory.txt
+      - name: Test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-free-validation
+          path: build/render-free
+          if-no-files-found: ignore
+          retention-days: 7

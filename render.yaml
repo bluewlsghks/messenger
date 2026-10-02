@@ -1,0 +1,31 @@
+# Zero-cost template only. This file does not create a service until explicitly applied.
+# Use a free workspace WITHOUT a payment method. Stop if Render requires payment.
+# Never omit plan: free; an omitted plan can select paid compute.
+previews:
+  generation: "off"
+services:
+  - type: web
+    name: messenger-bluew-free
+    runtime: docker
+    repo: https://github.com/bluewlsghks/messenger
+    branch: feat/discord-server-channels
+    plan: free
+    region: singapore
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: "off"
+    healthCheckPath: /login
+    envVars:
+      # Supply credentials ONLY in the Render dashboard, never in Git or chat.
+      - key: MONGODB_URI
+        sync: false
+      # Reuse the EXISTING AES key if reusing encrypted user data.
+      - key: APP_AES_KEY_BASE64
+        sync: false
+      - key: APP_JWT_SECRET_BASE64
+        sync: false
+      - key: APP_OPENAI_ENABLED
+        value: "false"
+# No paid disk, database, worker, cron job, static outbound IP, or custom domain.
+# Database: use a separate Atlas Free (M0) cluster, not a 30-day Render Postgres trial.

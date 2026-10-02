@@ -1,0 +1,16 @@
+name: Public access scripts
+on: [pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows PowerShell 5.1
+        shell: powershell
+        run: ./src/test/powershell/PublicAccess.Tests.ps1
+      - name: PowerShell 7
+        shell: pwsh
+        run: ./src/test/powershell/PublicAccess.Tests.ps1
