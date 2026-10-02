@@ -1,10 +1,47 @@
+# 💻 이진환 | Backend Developer
+
+> **복잡한 업무를 이해하고, 데이터가 정확하게 흐르는 백엔드를 만듭니다.**
+
+**7+ years · Java / Spring · ERP / MES · Real-time Systems**  
+📧 [bluewlsghks@gmail.com](mailto:bluewlsghks@gmail.com) · 🔗 [Notion 이력서](https://chipped-falcon-031.notion.site/Backend-Developer-7-years-2f542116bdcf80378ec1e085b2b3bf4f)
+
+## 👨‍💻 Developer Profile
+
+ERP 운영에서 쌓은 문제 해결력에, MES·실시간 서비스 설계 경험을 더한 Java/Spring 백엔드 개발자입니다. 인사·근태·복무·전자결재 연계 ERP에서 복잡한 업무 규칙, SQL 성능 병목과 운영 장애를 다뤘으며, 현재는 MES/PMS 생산관리 백엔드와 설비·외부 시스템 연계를 개발하고 있습니다.
+
+개인 프로젝트 **Messenger**에서는 DM·그룹 채팅을 서버·채널형 커뮤니티로 확장하며 접근 권한, 동시 수정 충돌, 조회 경계, 회귀 테스트까지 구현했습니다. 아래에는 개발자 소개와 함께 **실제로 구현한 기능, 근거 코드, 검증 범위, 남은 과제**를 정리했습니다.
+
+### 💼 Career Snapshot
+
+| 기간 | 소속 / 역할 | 주요 경험 |
+|---|---|---|
+| 2026.03–현재 | ㈜버텍스아이디 · Backend Developer | 농심 녹산 MES/PMS, 작업지시·LOT·실적·리포트, MQTT 수집·큐·배치 저장, ERP 연계, PMS–AMR 통신 설계·협의 |
+| 2020.07–2026.03 | ㈜씨앤에프시스템 · Backend Developer / 과장 | 인사·근태·복무·평가 ERP, 전자결재 API, SQL 개선, 리포트, Jenkins 배포·운영 장애 대응 |
+| 2020.01–2020.03 | Freelance Developer | 서울바이오허브 시큐어코딩·유지보수, 베개 높이 측정 시스템 기능·UI 설계 |
+| 2018.11–2020.01 | ㈜다루소프트 · Backend Developer | 공공기관 웹 개발, 보안 취약점·접근성 개선, LG Mobile Repair 참여 |
+| 2018.06–2018.09 | ㈜에이치아이엘 · Backend Developer | IoT 스마트 문 손잡이 서버, Spring Boot API·DB 설계, GitLab 협업 |
+
+### 🧰 Experience Focus
+
+- **업무 시스템:** Java, Spring, Spring Boot, JPA, QueryDSL, MyBatis, eGovFrame; Oracle·MariaDB·MSSQL·Tibero와 Linked Server 기반 데이터 연계.
+- **생산·설비 데이터:** MQTT/Mosquitto, 수신·큐·배치 저장, 작업지시 상태 전이와 공정별 LOT·실적 처리. AMR은 통신 방식·토픽 설계 및 협의 경험입니다.
+- **개인 실시간 서비스:** MongoDB, REST/STOMP 공통 인가, 복합 커서, 조건부 원자적 갱신, GitHub Actions·브라우저 회귀 테스트.
+
+회사 프로젝트의 기술과 이 저장소의 기술은 구분합니다. **Messenger는 MongoDB·Thymeleaf·Vanilla JavaScript 기반**이며, JPA·Vue 기반 프로젝트가 아닙니다.
+
+### 🛠️ How I Work
+
+**코드가 동작하는 이유만큼, 데이터가 맞는 이유를 설명합니다.** 입력부터 저장·집계·외부 연계까지 앞뒤 업무를 확인하고, 오류를 고칠 때는 재현 조건과 영향 범위를 함께 살핍니다. 구조를 선택한 이유와 예외 상황, 검증 방법을 설명할 수 있는 개발을 지향합니다.
+
+---
+
 # 📬 Messenger · 실시간 메신저
 
 **Java 21 · Spring Boot · MongoDB 기반의 실시간 메신저 개인 프로젝트**입니다.
 WebSocket/STOMP와 JWT 인증을 기반으로 시작해, **1:1 DM·그룹 대화·Discord형 서버/텍스트 채널을 하나의 작업 화면으로 통합**했습니다. 메시지 수정·삭제·검색, 읽음 처리, 새 메시지 알림과 선택적 AI 응답까지 구현했습니다.
 
-> **문서 기준:** 2026-10-02, `feat/discord-server-channels`의 소스 커밋 `1a1717c`.
-> 이 README는 최신 개발 브랜치를 설명합니다. 문서 작성 시점에 [PR #1](https://github.com/bluewlsghks/messenger/pull/1)은 Draft이며 `master`에는 아직 병합되지 않았습니다.
+> **문서 기준:** 2026-10-02, `master`의 기능 병합 커밋 `9ba7682` 기준.
+> [PR #1](https://github.com/bluewlsghks/messenger/pull/1)은 `master`에 병합되었습니다. 실행 안내도 `master` 기준입니다. 아래 테스트 수치는 각 검증 시점의 소스에 대한 결과이며, 이번 문서 수정으로 새 운영 검증을 완료했다는 의미는 아닙니다.
 > 텍스트 메신저 프로젝트로, Discord 전체 기능이나 음성·영상 통화, 실제 서비스 배포 완료를 의미하지 않습니다.
 
 [Resume Summary](#resume-summary) · [기능](#features) · [구조](#architecture) · [API](#rest-api) · [실행](#getting-started) · [검증](#tests--verification) · [남은 과제](#limitations--roadmap)
@@ -204,11 +241,11 @@ HTTP 인증은 `Authorization: Bearer <JWT>` 헤더를 사용하며 세션은 `S
 Java 21과 접근 가능한 **개발용 MongoDB**가 필요합니다. Gradle Wrapper가 포함되어 있어 Gradle 별도 설치는 필요하지 않습니다. Node/Python/Playwright는 해당 테스트를 실행할 때 사용합니다.
 
 ```bash
-git clone --branch feat/discord-server-channels https://github.com/bluewlsghks/messenger.git
+git clone --branch master https://github.com/bluewlsghks/messenger.git
 cd messenger
 ```
 
-이미 저장소가 있다면 로컬 변경을 먼저 커밋/보관한 뒤 해당 개발 브랜치를 사용합니다. `master`만 받으면 이 문서의 최신 기능과 다를 수 있습니다.
+이미 저장소가 있다면 로컬 변경을 먼저 커밋/보관한 뒤 `git fetch origin`, `git switch master`, `git pull --ff-only origin master` 순서로 갱신합니다. 로컬 수정사항이나 분기 차이로 명령이 실패하면 강제 초기화하지 말고 먼저 변경 내역을 확인합니다.
 
 ### 환경 변수
 
@@ -247,15 +284,15 @@ macOS/Linux에서는 같은 환경 변수를 설정한 후 `bash ./gradlew test 
 
 ### 확인된 결과
 
-소스 커밋 `1a1717c`에 연결된 **2026-09-30 [Messenger CI 실행](https://github.com/bluewlsghks/messenger/actions/runs/36672680708)**과 `messenger-validation` 아티팩트를 확인했습니다. 이 아티팩트의 테스트용 병합 커밋과 개발 브랜치 커밋은 동일한 소스 트리를 가집니다.
+소스 커밋 `1a1717c`에 연결된 **2026-09-30 [Messenger CI 실행](https://github.com/bluewlsghks/messenger/actions/runs/36672680708)**과 `messenger-validation` 아티팩트를 기준으로 정리했습니다. 이 아티팩트의 테스트용 병합 커밋과 개발 브랜치 커밋은 동일한 소스 트리를 가집니다.
 
 | 검증 | 결과 / 확인 범위 |
 |---|---|
 | Java 단위 + 실제 MongoDB/HTTP 통합 테스트 | CI 보고서 기준 **56개, 실패 0, 건너뜀 0** |
 | 실제 Chromium 브라우저 시나리오 | CI 보고서 기준 **10개**, 처리되지 않은 JavaScript 오류 0 |
 | `test bootJar` | 해당 CI 성공 |
-| JavaScript 문법 및 회귀 테스트 | 2026-10-02 동일 소스로 재실행: **19개 통과** |
-| 배포 설정·실행기 오프라인 테스트 | 2026-10-02 동일 소스로 재실행: **9개 통과** |
+| JavaScript 회귀 테스트 | 2026-10-02 검증 아티팩트의 소스로 재실행: **19개 통과** |
+| 배포 설정·실행기 오프라인 테스트 | 2026-10-02 검증 아티팩트의 소스로 재실행: **9개 통과** |
 | 공개 접속 스크립트 | 해당 소스의 Windows PowerShell 5.1/7 CI 성공 |
 | Docker 배포 스모크 | [Render 구성 CI](https://github.com/bluewlsghks/messenger/actions/runs/36672680853) 성공; MongoDB와 512MB 제한 컨테이너 검증. 실제 Render 배포/부하 시험은 아님 |
 
@@ -281,6 +318,7 @@ node --test (Get-ChildItem .\src\test\js\*.cjs).FullName
 | 대화 확장 | 첨부파일, 답장·스레드·멘션, 음성·영상·화면 공유, 대용량 내역 UI 가상화 |
 | 인증·데이터 정비 | Refresh Token 회전/폐기, 사용자별 요청 제한, 가입 입력 정규화/중복 저장 경로 정비, 레거시 개인정보·ID 및 고유 인덱스 점검, 읽음 모델 통합 |
 | 운영·확장 | 분산 브로커/다중 인스턴스, 모니터링·백업/복구, 의존성 보안 검토, 실제 운영망/OS 알림과 부하·장기 연결 검증 |
+| 검색 학습·확장 계획 | 현재 검색은 MongoDB 기반. Elasticsearch 검색과 비동기 인덱싱, Index/Analyzer 설계는 후속 학습·적용 과제 |
 
 현재 Spring 인메모리 브로커와 JVM 세션 맵은 단일 인스턴스를 전제로 합니다. 재연결 시 최신 100개 메시지를 병합하지만 모든 오프라인 구간을 자동 복구하지는 않습니다. 테스트 통과를 운영 보안 감사나 무중단 전달 보장으로 표현하지 않습니다.
 
@@ -315,4 +353,5 @@ scripts/                     공개 접속 및 배포 실행기
 
 ## Contact
 
-- Email: bluewlsghks@gmail.com
+- Email: [bluewlsghks@gmail.com](mailto:bluewlsghks@gmail.com)
+- Resume: [Notion 이력서](https://chipped-falcon-031.notion.site/Backend-Developer-7-years-2f542116bdcf80378ec1e085b2b3bf4f)
