@@ -1,0 +1,30 @@
+name: Import reviewed roadmap sources
+on:
+  push:
+    branches: [maintenance/roadmap-workbench-20261006]
+    paths: [.github/workflows/roadmap-import.yml, .github/roadmap-import.py, '.github/roadmap-parts/**']
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify and apply exact reviewed source bundle
+        run: |
+          cp .github/roadmap-import.py /tmp/roadmap-import.py
+          cp -r .github/roadmap-parts /tmp/roadmap-parts
+          git checkout --detach 4ffa27fc9874d01b9804195678b223b506abcc65
+          python3 /tmp/roadmap-import.py /tmp/roadmap-parts
+          git add -A
+          git add -f src/main/resources/application.yml
+          git config user.name bluewlsghks
+          git config user.email 37615851+bluewlsghks@users.noreply.github.com
+          git commit -m 'feat: implement messenger roadmap with bounded media and operational tooling' -m 'Add idempotent persistence and embedded outbox, reconnect sync, refresh rotation, quotas, contact approval/blocking, community ACL and lifecycle, attachments/threads/mentions, opt-in Web Push, shared call state and four-person mesh media, optional RabbitMQ/Elasticsearch, operations/audit/backup tools and process guardian. Preserve existing Mongo identities and README resume. Local verification: 131 Java/MongoDB and 40 JavaScript tests; real browser scenarios use synthetic media. External infrastructure CI and physical-device verification remain distinct.'
+          git push origin HEAD:refs/heads/review/roadmap-source-20261006
+          echo "ROADMAP_COMMIT=$(git rev-parse HEAD)"
+          echo "ROADMAP_TREE=$(git rev-parse HEAD^{tree})"
+          git diff --stat HEAD^
