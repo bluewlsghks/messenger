@@ -40,8 +40,8 @@ ERP 운영에서 쌓은 문제 해결력에, MES·실시간 서비스 설계 경
 **Java 21 · Spring Boot · MongoDB 기반의 실시간 메신저 개인 프로젝트**입니다.
 WebSocket/STOMP와 JWT 인증을 기반으로 시작해, **1:1 DM·그룹 대화·Discord형 서버/텍스트 채널을 하나의 작업 화면으로 통합**했습니다. 메시지 수정·삭제·검색, 읽음 처리, 새 메시지 알림과 선택적 AI 응답에 더해 **WebRTC 1:1 음성통화**를 구현했습니다.
 
-> **문서 기준:** 2026-10-06, `master`의 `9d80375`를 기반으로 한 `feature/voice-calls-20261006` 작업 내용.
-> 기존 [PR #1](https://github.com/bluewlsghks/messenger/pull/1)은 `master`에 병합되었습니다. 음성통화는 이 기능 브랜치에 추가한 내용이며, 이 문서만으로 `master` 병합이나 배포 완료를 의미하지 않습니다. 아래 테스트 수치는 각 검증 시점의 소스에 대한 결과입니다.
+> **문서 기준:** 2026-10-06, `master`의 `9d80375`를 기반으로 한 `feature/voice-calls-20261006` 작업 내용. 음성통화와 IntelliJ 실행 연동 공개 URL 자동 생성을 포함합니다.
+> 기존 [PR #1](https://github.com/bluewlsghks/messenger/pull/1)은 `master`에 병합되었습니다. 음성통화와 자동 터널은 이 기능 브랜치에 추가한 내용이며, 이 문서만으로 `master` 병합이나 배포 완료를 의미하지 않습니다. 아래 테스트 수치는 각 검증 시점의 소스에 대한 결과입니다.
 > 음성 기능의 범위는 **기존 DM의 1:1 통화**입니다. 다인 음성채널·영상·화면 공유, TURN 서버 설치, 실제 서비스 운영은 포함하지 않습니다.
 
 [Resume Summary](#resume-summary) · [기능](#features) · [음성통화](#voice-calls) · [구조](#architecture) · [API](#rest-api) · [실행](#getting-started) · [검증](#tests--verification) · [남은 과제](#limitations--roadmap)
@@ -61,6 +61,7 @@ WebSocket/STOMP와 JWT 인증을 기반으로 시작해, **1:1 DM·그룹 대화
 - **음성통화:** 요청·수락·거절·종료, WebRTC SDP/ICE 교환, 음소거·음량, 다중 탭 수락 경쟁, 만료된 통화 정리와 마이크 자원 해제를 구현했습니다. STUN과 선택적 단기 TURN 자격증명 설정을 분리했습니다.
 - **문제 해결과 사용성:** 친구 목록 Principal 오류, ID 대소문자 충돌, 동일 시각 메시지 페이지 경계 문제를 보강하고 한국어 IME·초안·실패 입력 보존·반응형 화면을 반영했습니다.
 - **AI·검증·배포 준비:** 선택적 OpenAI 연동, 비동기 실행과 동시 요청 제한, Java/JavaScript/브라우저 테스트 및 CI, Windows 공개 접속 스크립트와 Docker 배포 구성을 추가했습니다.
+- **개발 실행 자동화:** IntelliJ Run/Debug에서 선택적으로 Quick Tunnel을 기동하고 발급 Origin을 보안·WebSocket 초기화 전에 적용합니다. 프로세스 소유권 기반 종료, 발급 제한 시간과 오프라인 자식 프로세스 검사를 추가했습니다.
 
 ## Tech Stack
 
@@ -74,7 +75,7 @@ WebSocket/STOMP와 JWT 인증을 기반으로 시작해, **1:1 DM·그룹 대화
 | Browser libraries | WebJar로 제공하는 `@stomp/stompjs 7.3.0`, `sockjs-client 1.6.1` |
 | AI | OpenAI Java SDK `4.16.1`, Responses API; 소스에 설정된 모델 `gpt-4.1-mini` |
 | Build / Test | Gradle Kotlin DSL, JUnit 5, Mockito, Node 테스트, Python Playwright Chromium |
-| CI / Deployment assets | GitHub Actions, Docker 멀티 스테이지 빌드, PowerShell, Render Blueprint |
+| CI / Deployment assets | GitHub Actions, Docker 멀티 스테이지 빌드, PowerShell, Render Blueprint, 선택적 cloudflared 개발 터널 |
 
 버전 근거: [build.gradle.kts](build.gradle.kts). 애플리케이션 소스는 Java이며, **Vue/React 프런트엔드나 별도 npm 빌드가 필요한 구조는 아닙니다.** 현재 작업 화면의 CSS와 STOMP/SockJS 라이브러리는 애플리케이션에서 제공합니다. 음성 처리는 브라우저의 `RTCPeerConnection`과 `getUserMedia()`를 사용하며 새 유료 통화 SDK는 추가하지 않았습니다.
 
@@ -92,6 +93,7 @@ WebSocket/STOMP와 JWT 인증을 기반으로 시작해, **1:1 DM·그룹 대화
 | 알림 | 개인 이벤트 피드, 앱 안 팝업, 이번 접속의 알림 센터, 대화/서버/전체 안 읽은 배지, 대화별 음소거, 선택적 데스크톱 알림·알림음·본문 미리보기 |
 | 1:1 음성통화 | DM의 통화 버튼, 수신 패널·수락·거절·취소·종료, 통화 시간, 마이크 음소거, 상대 음량, 자동 재생 차단 시 재생 버튼, 중복 통화·다중 탭 제어, 연결 실패 및 마이크 권한 안내 |
 | AI Bot | `/ai 질문` 또는 STOMP `/pub/ai.ask`, 최근 대화 문맥 활용, 비동기 응답 생성, `AI_BOT` 메시지 저장 및 전달 |
+| IntelliJ 공개 URL 자동화 | 한 번의 옵션 설정 후 Run/Debug로 터널 기동, 새 Origin 자동 적용, 콘솔 URL 출력, 정상 종료·시작 실패 시 소유 프로세스 정리. 기본 비활성 |
 
 **기능 범위**
 
@@ -178,6 +180,7 @@ AI 명령: 공통 전송 경로 → 별도 실행기 → OpenAI → AI_BOT 저�
 | 음성통화 권한·경쟁 | [VoiceCallService](src/main/java/com/individual/messenger/voice/VoiceCallService.java)의 사용자당 통화 예약, 수락 탭 고정, 역할별 명령 검사와 만료 회수 |
 | 비동기 마이크·연결 정리 | [voice-call.js](src/main/resources/static/js/voice-call.js)의 통화별 수명 검사, 취소 뒤 도착한 마이크 해제, ICE 버퍼와 직렬 처리 |
 | TURN 비밀값 분리 | [VoiceConfiguration](src/main/java/com/individual/messenger/voice/VoiceConfiguration.java)의 서버 전용 공유 비밀값과 2시간 유효 HMAC 자격증명 생성 |
+| 실행마다 바뀌는 공개 URL | [PublicTunnelListener](src/main/java/com/individual/messenger/dev/PublicTunnelListener.java)가 환경 준비 이벤트에서 터널을 시작하고 현재 Origin을 보안 Bean 초기화 전에 주입. [QuickTunnelProcess](src/main/java/com/individual/messenger/dev/QuickTunnelProcess.java)가 자식 프로세스·격리 설정·종료를 관리 |
 
 ## Security & Access Rules
 
@@ -192,6 +195,8 @@ HTTP 인증은 `Authorization: Bearer <JWT>` 헤더를 사용하며 세션은 `S
 [CryptoService](src/main/java/com/individual/messenger/crypto/CryptoService.java)는 전화번호 등 해당 개인정보 필드를 AES-GCM으로 암호화합니다. **채팅 본문 암호화나 종단 간 암호화(E2EE)를 구현한 것은 아닙니다.** 키·DB 비밀번호는 환경 변수로 주입하며 실제 값을 README나 Git에 넣지 않습니다.
 
 음성통화의 상대 ID는 요청 본문이 아니라 DM 멤버에서 결정합니다. 통화 명령과 개인 이벤트 전달 모두 기존 권한 검사를 거칩니다. SDP는 최대 16,000자, ICE 후보 문자열은 2,048자, 후보 전송은 통화 참여자별 256개로 제한합니다. 기본 P2P 모드에서는 연결 후보를 통해 상대에게 네트워크 주소가 알려질 수 있습니다. 주소 노출을 줄이려면 별도 TURN을 준비하고 `VOICE_RELAY_ONLY=true`를 사용해야 하며, 서비스 전체의 신원 검증형 E2EE를 구현한 것으로 표현하지 않습니다.
+
+자동 공개 실행은 명시적으로 옵션을 켰을 때만 동작합니다. 이 모드에서는 새 공개 Origin과 현재 포트의 로컬 Origin만 허용하고, `127.0.0.1` 바인딩·전달 헤더 신뢰 비활성·AI 비활성을 적용합니다. 기존 DB/AES/JWT 값은 유지합니다. URL을 아는 사람은 로그인/가입에 접근할 수 있으므로 개발 DB와 테스트 계정을 사용합니다.
 
 ## REST API
 
@@ -270,6 +275,7 @@ HTTP 인증은 `Authorization: Bearer <JWT>` 헤더를 사용하며 세션은 `S
 
 | 변경 / 문제 | 현재 반영 내용 |
 |---|---|
+| IntelliJ 공개 URL 수동 실행 | 옵션 설정 후 Run/Debug에서 Quick Tunnel 기동·현재 Origin 적용·URL 출력·정상 종료 연동. 별도 터미널과 매번 환경 변수 수정 불필요 |
 | 1:1 음성통화 추가 | 기존 DM·JWT·STOMP 개인 이벤트를 재사용한 WebRTC 연결 및 통화 패널 |
 | 마이크·통화 경쟁 조건 | 수신 시 미리 캡처하지 않음, 취소 뒤 도착한 권한 응답 정리, 한 탭만 수락, SDP 이전 ICE 버퍼, 서버 통화 만료 |
 | 친구 목록 `INTERNAL_ERROR` | 문자열 Principal에 `username` 속성을 요구하던 방식 대신 공통 사용자 확인 경로 사용. 이름 일괄 조회, 중복 표시 제거, 불필요한 레거시 날짜 매핑 회피 |
@@ -279,10 +285,10 @@ HTTP 인증은 `Authorization: Bearer <JWT>` 헤더를 사용하며 세션은 `S
 | 중복 팝업·오래된 변경 이벤트 | 본인/집중해서 보는 대화의 팝업 억제, 수정·삭제를 신규 알림에서 제외, 버전 기반 병합 |
 | 사용자 입력 유실·한글 Enter | 대화별 초안, 실패 입력 보존, IME 조합 확인, Shift+Enter 줄바꿈 |
 | 연결·화면 복원 | 자동 재연결, 다른 탭 토큰 변경 처리, 뒤로가기 캐시 복원 시 연결 재개, 멤버 패널을 열 때 서버 정보 재조회 |
-| 외부 HTTPS 접속의 Origin 불일치 | 실제 공개 주소를 HTTP CORS와 SockJS 허용 목록에 적용하는 실행 스크립트 및 회귀 테스트 추가 |
+| 외부 HTTPS 접속의 Origin 불일치 | 실제 공개 주소를 HTTP CORS와 SockJS 허용 목록에 적용하는 자동 실행 리스너 및 기존 수동 실행 스크립트 |
 | 배포 준비 | 비루트 사용자 Docker 실행, 포트/Origin/필수 변수 검증, Render Blueprint, 공개 실행 시 AI 비활성화 |
 
-외부 URL에서 로그인에 403이 발생하면 현재 URL의 **Origin(경로 없는 `https://호스트`)**과 `APP_ALLOWED_ORIGINS`, 서버 재시작 여부를 먼저 확인합니다. 이것이 모든 403의 원인이라는 뜻은 아닙니다. 임시 주소 변경 시 이전 주소 설정을 그대로 사용하거나 `*`로 전체 허용하지 말고 [공개 접속 안내](docs/PUBLIC_ACCESS.md)에 따라 정확한 주소를 적용합니다.
+외부 URL에서 로그인에 403이 발생하면 현재 URL의 **Origin(경로 없는 `https://호스트`)**과 실제 허용 목록을 먼저 확인합니다. 이것이 모든 403의 원인이라는 뜻은 아닙니다. **자동 터널 모드에서는 새 Origin을 직접 적용하므로 `APP_ALLOWED_ORIGINS`를 매번 고치거나 다시 시작할 필요가 없습니다.** 기존 수동 모드는 [공개 접속 안내](docs/PUBLIC_ACCESS.md)에 따라 정확한 주소를 적용합니다. `*`로 전체 허용하지 않습니다.
 
 통화만 실패하면 마이크 권한, HTTPS/localhost 여부, 상대방 실시간 연결, 자동 재생 차단, TURN 필요 여부를 순서대로 확인합니다. STUN 성공이 음성 직접 연결 성공을 보장하지는 않습니다.
 
@@ -299,7 +305,7 @@ cd messenger
 
 이미 저장소가 있다면 로컬 변경을 먼저 커밋/보관한 뒤 `git fetch origin`, `git switch master`, `git pull --ff-only origin master` 순서로 갱신합니다. 로컬 수정사항이나 분기 차이로 명령이 실패하면 강제 초기화하지 말고 먼저 변경 내역을 확인합니다.
 
-음성통화가 아직 `master`에 병합되지 않았다면 `git fetch origin` 후 `git switch --track origin/feature/voice-calls-20261006`으로 기능 브랜치를 처음 가져옵니다. 이미 해당 로컬 브랜치가 있으면 `git switch feature/voice-calls-20261006` 후 `git pull --ff-only`를 사용합니다.
+음성통화·자동 터널이 아직 `master`에 병합되지 않았다면 `git fetch origin` 후 `git switch --track origin/feature/voice-calls-20261006`으로 기능 브랜치를 처음 가져옵니다. 이미 해당 로컬 브랜치가 있으면 `git switch feature/voice-calls-20261006` 후 `git pull --ff-only`를 사용합니다.
 
 ### 환경 변수
 
@@ -308,9 +314,12 @@ cd messenger
 | `MONGODB_URI` | 필수. 개발 MongoDB 연결 URI |
 | `APP_AES_KEY_BASE64` | 필수. Base64 인코딩 AES 키; 구현은 16/24/32바이트 키를 허용. 신규 환경은 32바이트 키 사용 권장 |
 | `APP_JWT_SECRET_BASE64` | 필수. JWT 서명용 32바이트 이상 키의 Base64 값; AES 키와 별도 관리 |
-| `APP_ALLOWED_ORIGINS` | 기본 `http://localhost:8080,http://127.0.0.1:8080`; 실제 접속 Origin을 쉼표로 구분 |
-| `APP_OPENAI_ENABLED` | 선택. 기본 `false` |
+| `APP_ALLOWED_ORIGINS` | 기본 `http://localhost:8080,http://127.0.0.1:8080`; 실제 접속 Origin을 쉼표로 구분. 자동 터널 모드에서는 현재 공개·로컬 Origin으로 대체 |
+| `APP_OPENAI_ENABLED` | 선택. 기본 `false`. 자동 공개 실행에서는 `false` 적용 |
 | `OPENAI_API_KEY` | AI를 활성화할 때만 필요 |
+| `APP_PUBLIC_TUNNEL_ENABLED` | 선택. 기본 `false`. `true`이면 main 실행 시 Quick Tunnel 자동 기동 |
+| `APP_PUBLIC_TUNNEL_EXECUTABLE` | 선택. 기본 `cloudflared`. 설치된 실행 파일의 경로 지정 가능; Windows WinGet 일반 경로도 탐색 |
+| `APP_PUBLIC_TUNNEL_TIMEOUT_SECONDS` | 선택. 기본 `90`, 1~300초. URL 발급 대기 제한 |
 | `MONGODB_TEST_URI` | MongoDB 통합 테스트 실행 시 사용; 운영 DB가 아닌 전용 테스트 MongoDB 연결 |
 | `VOICE_STUN_URLS` | 선택. 기본 `stun:stun.l.google.com:19302`; 쉼표 구분. 빈 값이면 외부 STUN 없이 로컬 후보만 사용 |
 | `VOICE_TURN_URLS` | 선택. 별도로 준비한 `turn:`/`turns:` URL 목록. 기본 비어 있음 |
@@ -332,13 +341,31 @@ $env:APP_OPENAI_ENABLED = "false"
 
 macOS/Linux에서는 같은 환경 변수를 설정한 후 `bash ./gradlew test bootJar`, `bash ./gradlew bootRun`을 실행합니다. 기본 접속 주소는 `http://localhost:8080`이며 로그인 후 통합 화면으로 이동합니다. 일반 메신저와 기본 음성통화 실행에 AI 키는 필요하지 않습니다. 기본 음성 설정으로 모든 외부 네트워크의 연결을 보장하지는 않습니다.
 
+### IntelliJ에서 서버와 공개 URL 함께 실행
+
+이미 cloudflared가 설치되어 있다면 **Run → Edit Configurations → 현재 MessengerApplication → Environment variables**에 다음 값만 한 번 추가합니다. 기존 DB/JWT/AES 변수는 유지합니다.
+
+```text
+APP_PUBLIC_TUNNEL_ENABLED=true
+```
+
+이전처럼 8081을 사용하면 `SERVER_PORT=8081`도 유지합니다. 실행 대상은 `com.individual.messenger.MessengerApplication`, Working directory는 프로젝트 루트로 둡니다. 이후 **Run/Debug 버튼만 누르면 새 공개 URL이 콘솔에 표시**됩니다. 새 Origin도 자동 반영하므로 별도 터미널 명령이나 매번 CORS 설정 변경은 필요하지 않습니다.
+
+정상 Stop/시작 실패/JVM 정상 종료 때 이번 터널을 함께 정리합니다. 강제 Kill/크래시까지 정리를 보장하지는 않습니다. 기존 수동 터널은 해당 터미널에서 먼저 종료합니다. 자동 다운로드·유료 서비스 생성은 하지 않으며, 이 모드를 켜지 않은 실행은 외부 공개되지 않습니다. 설치 경로 지정·오류·로그·검증 범위는 [INTELLIJ_PUBLIC_TUNNEL.md](docs/INTELLIJ_PUBLIC_TUNNEL.md)를 참조합니다.
+
 ### 외부 접속 및 배포 구성
 
-[PUBLIC_ACCESS.md](docs/PUBLIC_ACCESS.md)는 `scripts/Start-Public.ps1`을 이용한 Windows 개발 PC 공개 접속을 설명합니다. IntelliJ의 기존 실행 설정을 사용하는 `-TunnelOnly` 모드도 있습니다. PC·앱·터널이 중지되면 이 방식의 접속은 유지되지 않습니다.
+IntelliJ 실행 연동은 [INTELLIJ_PUBLIC_TUNNEL.md](docs/INTELLIJ_PUBLIC_TUNNEL.md)에 설명합니다. [PUBLIC_ACCESS.md](docs/PUBLIC_ACCESS.md)의 `scripts/Start-Public.ps1`과 `-TunnelOnly`는 기존 수동 실행 방식으로 유지합니다. 자동 모드와 수동 모드를 동시에 실행하지 않습니다. PC·앱·터널이 중지되면 이 방식의 접속은 유지되지 않습니다. HTTPS 웹 터널은 WebRTC 음성용 TURN 서버가 아닙니다.
 
 [RENDER_FREE.md](docs/RENDER_FREE.md)는 저장소의 `Dockerfile`, `scripts/start-render.sh`, `render.yaml`을 설명합니다. Blueprint에는 `plan: free`, 자동 배포 비활성화가 명시되어 있고, 실행기는 정확한 서비스 Origin과 포트를 적용하며 AI를 비활성화합니다. **배포 파일과 CI 검증이 있다는 사실은 실제 클라우드 서비스 생성·상시 운영 완료를 뜻하지 않습니다.** 템플릿 자체는 서비스를 생성하지 않으며, 적용 전 요금/제공 조건을 별도로 확인해야 합니다.
 
 ## Tests & Verification
+
+### IntelliJ 자동 터널 추가 시점의 검증
+
+2026-10-06 Java 21/Linux에서 [오프라인 자식 프로세스 검사](tests/java/QuickTunnelSmoke.java) **17개 통과**를 확인했습니다. 실제 cloudflared 대신 Java 테스트 프로세스로 URL 검증, 격리 설정, 파일 생성/삭제, 정상·중복 종료, 시간 초과, 조기/실행 중 종료, 포트 충돌, 누락된 실행 파일, 시작 중 인터럽트를 검사했습니다. Cloudflare에 접속하거나 실제 메신저를 공개하지 않았습니다.
+
+[PublicTunnelListenerTest](src/test/java/com/individual/messenger/dev/PublicTunnelListenerTest.java)에 Spring 설정·수명주기 테스트 10개, [Public tunnel CI](.github/workflows/public-tunnel-ci.yml)에 Windows/Linux 오프라인 실행을 추가했습니다. **로컬 17개 통과는 이 10개 테스트나 전체 Spring 빌드, 실제 Windows IntelliJ·외부망 접속 통과를 뜻하지 않습니다.** 전체 결과는 해당 PR의 CI 및 별도 기기 검증으로 확인합니다.
 
 ### 음성통화 추가 시점의 검증
 
@@ -385,6 +412,7 @@ node --test (Get-ChildItem .\src\test\js\*.cjs).FullName
 | 음성통화 운영 | 실제 기기·외부망·TURN 검증, 장치 선택·통화 기록·벨소리·백그라운드 수신, ICE restart, 통화 상태의 분산 관리. 현재 1:1/단일 JVM만 지원 |
 | 인증·데이터 정비 | Refresh Token 회전/폐기, 사용자별 요청 제한, 가입 입력 정규화/중복 저장 경로 정비, 레거시 개인정보·ID 및 고유 인덱스 점검, 읽음 모델 통합 |
 | 운영·확장 | 분산 브로커/다중 인스턴스, 모니터링·백업/복구, 의존성 보안 검토, 실제 운영망/OS 알림과 부하·장기 연결 검증 |
+| 개발용 공개 터널 | 실제 Windows IntelliJ·Cloudflare 외부망 검증. 임시 주소·로컬 PC 실행을 전제로 하며 고정 주소·상시 운영·강제 Kill 시 정리는 보장하지 않음 |
 | 검색 학습·확장 계획 | 현재 검색은 MongoDB 기반. Elasticsearch 검색과 비동기 인덱싱, Index/Analyzer 설계는 후속 학습·적용 과제 |
 
 현재 Spring 인메모리 브로커와 JVM 세션·통화 맵은 단일 인스턴스를 전제로 합니다. 재연결 시 최신 100개 메시지를 병합하지만 모든 오프라인 구간을 자동 복구하지는 않습니다. 테스트 통과를 운영 보안 감사나 무중단 전달 보장으로 표현하지 않습니다.
@@ -397,6 +425,7 @@ src/main/java/com/individual/messenger/
   security/  JWT, HTTP 보안, 공통 인가, STOMP 인터셉터
   service/   친구·방·서버·메시지·개인 이벤트·AI 처리
   voice/     1:1 통화 REST·상태·개인 이벤트·STUN/TURN 설정
+  dev/       선택적 개발 터널·Origin 적용·자식 프로세스 수명주기
   domain/    MongoDB 문서 모델
   repo/      MongoRepository 인터페이스
   config/    WebSocket, 인덱스, AI 실행기 등
@@ -408,6 +437,7 @@ src/main/resources/
   static/js/                 인증·연결·대화·알림·음성·화면 로직
   static/css/                화면 스타일
 src/test/                    Java, JavaScript, 브라우저, 배포, PowerShell 테스트
+tests/java/                  외부 의존성 없는 터널 프로세스 검사
 scripts/                     공개 접속 및 배포 실행기
 .github/workflows/           CI 정의
 ```
@@ -417,7 +447,8 @@ scripts/                     공개 접속 및 배포 실행기
 | [DISCORD_MVP.md](docs/DISCORD_MVP.md) | 초기 서버/채널 도입 당시 구조 분석과 기존 DB 마이그레이션 주의. 당시 남은 과제 중 일부는 후속 버전에서 구현됨 |
 | [WORKSPACE_V2.md](docs/WORKSPACE_V2.md) | 통합 화면·친구 오류 수정·알림·메시지 작업의 상세 설명 |
 | [VOICE_CALLS.md](docs/VOICE_CALLS.md) | 1:1 음성통화 사용법, REST/STOMP 프로토콜, HTTPS·STUN/TURN 설정, 경쟁 조건·제한 및 테스트 |
-| [PUBLIC_ACCESS.md](docs/PUBLIC_ACCESS.md) | Windows 개발 PC 공개 접속 및 Origin 설정 |
+| [INTELLIJ_PUBLIC_TUNNEL.md](docs/INTELLIJ_PUBLIC_TUNNEL.md) | Run/Debug 공개 URL 자동 생성, 한 번의 설정, Origin·프로세스 정리·검증 범위 |
+| [PUBLIC_ACCESS.md](docs/PUBLIC_ACCESS.md) | 기존 Windows 개발 PC 수동 공개 접속 및 Origin 설정 |
 | [RENDER_FREE.md](docs/RENDER_FREE.md) | Docker/Render 배포 구성과 적용 전 확인 사항 |
 
 ### README 유지 원칙
