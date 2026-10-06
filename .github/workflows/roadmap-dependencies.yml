@@ -50,7 +50,7 @@ jobs:
               runtimeOnly("org.webjars.npm:sockjs-client:1.6.1") { isTransitive = false }
               testImplementation("org.springframework.boot:spring-boot-starter-test")
               testImplementation("org.springframework.boot:spring-boot-resttestclient")
-              testRuntimeOnly("org.junit.platform:junit-platform-console-standalone")
+              testRuntimeOnly("org.junit.platform:junit-platform-console-standalone:6.0.3")
               implementation("org.springframework.security:spring-security-crypto")
               implementation("org.springframework.boot:spring-boot-starter-security")
               implementation("io.jsonwebtoken:jjwt-api:0.11.5")
