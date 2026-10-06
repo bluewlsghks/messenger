@@ -28,7 +28,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         if(relay) {
             config.configureBrokerChannel().interceptors(new BrokerDestinationCodec(false));
             if(login.isBlank() || password.isBlank())throw new IllegalArgumentException("Broker relay credentials must be configured explicitly");
-            var relayRegistration=config.enableStompBrokerRelay("/topic","/queue").setRelayHost(host).setRelayPort(port)
+            var relayRegistration=config.enableStompBrokerRelay("/topic","/queue","/exchange").setRelayHost(host).setRelayPort(port)
                     .setClientLogin(login).setClientPasscode(password).setSystemLogin(login).setSystemPasscode(password)
                     .setVirtualHost(virtualHost).setSystemHeartbeatSendInterval(10000).setSystemHeartbeatReceiveInterval(10000);
             relayRegistration.setUserDestinationBroadcast("/topic/messenger-unresolved-users");

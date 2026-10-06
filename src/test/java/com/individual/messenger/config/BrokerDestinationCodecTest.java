@@ -51,8 +51,8 @@ class BrokerDestinationCodecTest {
             assertEquals(destination(original), destination(decode.preSend(encode.preSend(original, null), null)));
         }
     }
-    @Test void userQueuesAndInternalBroadcastsAreUntouched() {
-        for (String path : new String[]{"/queue/events-userabc", "/topic/messenger-user-registry", "/pub/chat.send"}) {
+    @Test void UnresolvedUserQueuesAndInternalBroadcastsAreUntouched() {
+        for (String path : new String[]{"/user/queue/events", "/queue/unrelated", "/topic/messenger-user-registry", "/pub/chat.send"}) {
             Message<?> message = applicationMessage(path);
             assertSame(message, encode.preSend(message, null));
             assertSame(message, decode.preSend(message, null));
@@ -75,6 +75,59 @@ class BrokerDestinationCodecTest {
         Message<?> delivery = decode.preSend(applicationMessage("/topic/chat.room.read"), null);
         assertNotNull(security.outbound().preSend(delivery, null));
         verify(access).requireMember(eq("room"), any());
+        doThrow(new AccessDeniedException("revoked")).when(access).requireMember(eq("room"), any());
+        assertNull(security.outbound().preSend(delivery, null));
+    }
+
+    @Test void personalQueuesUseDirectExchangeWithoutQueueRedeclaration() {
+        for (String kind : new String[]{"events", "errors"}) {
+            Message<?> original = applicationMessage("/queue/" + kind + "-usertest-session");
+            Message<?> encoded = encode.preSend(original, null);
+            assertEquals("/exchange/amq.direct/" + kind + "-usertest-session", destination(encoded));
+            assertEquals(StompCommand.SEND, StompHeaderAccessor.wrap(encoded).getCommand());
+            assertEquals(destination(original), destination(decode.preSend(encoded, null)));
+        }
+    }
+    @Test void personalSubscriptionsRemainExclusiveAndDoNotAcceptSharedQueueOverrides() {
+        var h = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        h.setDestination("/queue/events-usersession_12"); h.setSubscriptionId("events-1");
+        h.setNativeHeader("x-queue-name", "some-other-queue");
+        h.setNativeHeader("persistent", "true");
+        h.setNativeHeader("x-dead-letter-exchange", "other");
+        h.setNativeHeader("x-dead-letter-routing-key", "other");
+        var wire = StompHeaderAccessor.wrap(encode.preSend(MessageBuilder.createMessage(new byte[0], h.getMessageHeaders()), null));
+        assertEquals("/exchange/amq.direct/events-usersession_12", wire.getDestination());
+        assertEquals("events-1", wire.getSubscriptionId());
+        assertEquals("true", wire.getFirstNativeHeader("exclusive"));
+        assertEquals("true", wire.getFirstNativeHeader("auto-delete"));
+        assertEquals("false", wire.getFirstNativeHeader("durable"));
+        for (String name : new String[]{"x-queue-name", "persistent", "x-dead-letter-exchange", "x-dead-letter-routing-key"}) {
+            assertNull(wire.getFirstNativeHeader(name));
+        }
+    }
+    @Test void arbitraryBrokerDestinationsAreNotDecodedIntoPersonalQueues() {
+        for (String path : new String[]{"/exchange/other/events-usersession", "/exchange/amq.direct/events-user*", "/queue/events-user../other"}) {
+            Message<?> message = applicationMessage(path);
+            assertSame(message, encode.preSend(message, null));
+            assertSame(message, decode.preSend(message, null));
+        }
+    }
+    @Test void personalDeliveryStillChecksNativeRecipientAndCurrentRoomMembership() {
+        JwtUtil jwt = mock(JwtUtil.class); ChatAccessService access = mock(ChatAccessService.class);
+        when(jwt.validate("token")).thenReturn(true); when(jwt.getSubject("token")).thenReturn("alice");
+        var security = new StompSecurityInterceptor(jwt, access);
+        var connection = StompHeaderAccessor.create(StompCommand.CONNECT);
+        connection.setSessionId("test-session"); connection.setNativeHeader("Authorization", "Bearer token"); connection.setLeaveMutable(true);
+        security.preSend(MessageBuilder.createMessage(new byte[0], connection.getMessageHeaders()), null);
+        var h = StompHeaderAccessor.create(StompCommand.MESSAGE);
+        h.setSessionId("test-session"); h.setDestination("/exchange/amq.direct/events-usertest-session");
+        h.setNativeHeader("chat-recipient", "alice"); h.setNativeHeader("chat-room", "room");
+        Message<?> delivery = decode.preSend(MessageBuilder.createMessage(new byte[0], h.getMessageHeaders()), null);
+        assertNotNull(security.outbound().preSend(delivery, null));
+        verify(access).requireMember(eq("room"), any());
+        h = StompHeaderAccessor.wrap(delivery);
+        h.setNativeHeader("chat-recipient", "bob");
+        assertNull(security.outbound().preSend(decode.preSend(MessageBuilder.createMessage(new byte[0], h.getMessageHeaders()), null), null));
         doThrow(new AccessDeniedException("revoked")).when(access).requireMember(eq("room"), any());
         assertNull(security.outbound().preSend(delivery, null));
     }

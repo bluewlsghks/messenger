@@ -150,7 +150,7 @@ STOMP에 음성 바이트를 보내지 않습니다. 메시지 outbox는 **별�
 .\gradlew.bat bootRun
 ```
 
-Linux/macOS는 `bash ./gradlew test bootJar bootJar`, `bash ./gradlew bootRun`을 사용합니다. `/login`에서 가입/로그인하고 DM 또는 그룹/채널을 엽니다. 두 계정 테스트는 다른 브라우저 프로필/시크릿 창을 쓰고, 음성에는 HTTPS 또는 localhost와 마이크 권한이 필요합니다.
+Linux/macOS는 `bash ./gradlew test bootJar`, `bash ./gradlew bootRun`을 사용합니다. `/login`에서 가입/로그인하고 DM 또는 그룹/채널을 엽니다. 두 계정 테스트는 다른 브라우저 프로필/시크릿 창을 쓰고, 음성에는 HTTPS 또는 localhost와 마이크 권한이 필요합니다.
 
 ### 선택 설정
 
@@ -182,7 +182,7 @@ Linux/macOS는 `bash ./gradlew test bootJar bootJar`, `bash ./gradlew bootRun`�
 
 일반 전송은 `roomId`, `content`, `clientRequestId`(UUID), 선택적 `replyToId`, `attachmentIds`를 받습니다. 발신자 ID/이름을 신뢰하지 않습니다. 파일이 있어도 메시지 본문은 1~4,000자입니다.
 
-STOMP 연결은 `/ws-stomp`, CONNECT에도 JWT가 필요합니다. SEND `/pub/chat.send`·`/pub/ai.ask`, SUBSCRIBE `/user/queue/events`·`/user/queue/errors`·`/topic/chat/{room}`·`/topic/chat/{room}/read`를 사용합니다. 기존 `/sub/chat`은 내부에서 `/topic/chat`으로 변환됩니다. 개인 이벤트에는 MESSAGE_*·VOICE_CALL·CONFERENCE가 포함됩니다.
+STOMP 연결은 `/ws-stomp`, CONNECT에도 JWT가 필요합니다. SEND `/pub/chat.send`·`/pub/ai.ask`, SUBSCRIBE `/user/queue/events`·`/user/queue/errors`·`/topic/chat/{room}`·`/topic/chat/{room}/read`를 사용합니다. 기존 `/sub/chat`은 내부에서 `/topic/chat`으로 변환됩니다. RabbitMQ relay를 켠 경우에만 실제 broker wire에서는 `/topic/chat.{room}`·`.read`로 바꾸고, 수신 시 논리 주소로 복원한 뒤 권한을 다시 검사합니다. [브로커 호환 처리](docs/BROKER_COMPATIBILITY.md)를 참고합니다. 개인 이벤트에는 MESSAGE_*·VOICE_CALL·CONFERENCE가 포함됩니다.
 
 ## Data & Security Notes
 
@@ -211,7 +211,7 @@ ID 고유 인덱스 충돌이 있으면 안전하게 시작을 거부합니다. 
 
 ## Tests & Verification
 
-비용 정책·백업 URI·친구 승인 컨테이너 검사·의존성 패치를 후속 반영했습니다. 로컬 Node 40개와 운영/비용 정책 검사 15개가 통과했습니다. 최신 Java/실제 백업/분산 인프라/OSV 결과는 CI에서 별도로 확인하며, 파일 수정만으로 통과를 주장하지 않습니다.
+비용 기본 차단·백업 URI·친구 승인 컨테이너 검사·의존성 패치와 RabbitMQ wire 호환 처리를 후속 반영했습니다. CI는 Java/MongoDB/HTTP, 브라우저의 1:1·다인 미디어, 실제 로컬 broker/search·새 DB 복구, 공개 터널 프로세스, resolved 의존성 검사를 구분하여 실행합니다. 최신 **실행 대상 커밋·통과 수·실패/미검증 범위**는 아래 검증 기록을 기준으로 확인합니다.
 
 실행 결과와 환경/fixture 범위는 [ROADMAP_VALIDATION.md](docs/ROADMAP_VALIDATION.md)에 기록합니다. 기존 [REFACTOR_VALIDATION.md](docs/REFACTOR_VALIDATION.md) 수치는 **이전 소스**의 기록입니다. 테스트 파일이 존재한다고 통과한 것으로 표시하지 않습니다.
 
@@ -245,7 +245,7 @@ scripts/validate/    제한된 로컬 soak
 deploy/              선택적 로컬 인프라/별도 TURN 설정 예제
 ```
 
-[ROADMAP_IMPLEMENTATION.md](docs/ROADMAP_IMPLEMENTATION.md)는 구현 원리/한계, [OPERATIONS.md](docs/OPERATIONS.md)는 선택 설정/백업/실기기 검사, [ROADMAP_VALIDATION.md](docs/ROADMAP_VALIDATION.md)는 실제 결과를 다룹니다. 기존 DISCORD_MVP·WORKSPACE_V2·VOICE_CALLS·INTELLIJ_PUBLIC_TUNNEL·RENDER_FREE 문서는 해당 단계의 기록도 포함하므로 현재 동작은 이 README와 후속 문서를 우선합니다.
+[NO_PAID_SERVICES.md](docs/NO_PAID_SERVICES.md)는 비용 포함/제외, [BROKER_COMPATIBILITY.md](docs/BROKER_COMPATIBILITY.md)는 relay 호환 처리, [ROADMAP_IMPLEMENTATION.md](docs/ROADMAP_IMPLEMENTATION.md)는 구현 원리/한계, [OPERATIONS.md](docs/OPERATIONS.md)는 선택 설정/백업/실기기 검사, [ROADMAP_VALIDATION.md](docs/ROADMAP_VALIDATION.md)는 실제 결과를 다룹니다. 기존 DISCORD_MVP·WORKSPACE_V2·VOICE_CALLS·INTELLIJ_PUBLIC_TUNNEL·RENDER_FREE 문서는 해당 단계의 기록도 포함하므로 현재 동작은 이 README와 후속 문서를 우선합니다.
 
 ### README 유지 원칙
 
