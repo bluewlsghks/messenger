@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(document.body.dataset.page!=='workspace'||!Auth.requireLogin())return;
   const $=id=>document.getElementById(id);const {el,button,avatar,icon}=UI;
   let servers=[],rooms=[],friends=[],selectedServer=null,selectedRoom=null,view='friends',loadSerial=0,friendError=null,searchSerial=0;
-  const realtime=new Realtime();const notices=new NotificationCenter(realtime,event=>openNotice(event));const chat=new ChatPanel(realtime,notices);
+  const realtime=new Realtime();const voice=new VoiceCalls(realtime,person);const notices=new NotificationCenter(realtime,event=>openNotice(event));const chat=new ChatPanel(realtime,notices);
   function error(message){$('workspace-error').replaceChildren();$('workspace-error').hidden=!message;if(message){$('workspace-error').append(document.createTextNode(message),button('다시 시도',()=>reload(),'text-button'));}}
   const count=id=>Number(notices.counts[id]||0);
   function badge(n){const b=el('span','badge',n>99?'99+':String(n));b.hidden=!n;return b;}
@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     $('friends-view').hidden=view!=='friends';$('chat-view').hidden=view!=='chat';$('chat-title').textContent=title;$('view-subtitle').textContent=subtitle;$('view-icon').replaceChildren(icon(view==='friends'?'users':selectedServer?'hash':'chat'));document.querySelectorAll('.chat-action').forEach(b=>b.hidden=view!=='chat');$('members-panel').hidden=true;$('toggle-members').setAttribute('aria-expanded','false');$('search-panel').hidden=true;
     if(view==='chat'){chat.open(selectedRoom,title);$('members-heading').textContent=`참여자 — ${members.length}`;$('member-list').replaceChildren();const owner=servers.find(s=>s.id===selectedServer)?.ownerId;for(const id of members){const row=el('div','member-row');const text=el('div');text.append(el('strong','',person(id)),el('small','',id===owner?'서버 소유자':id===Auth.getLoginId()?'나':'멤버'));row.append(avatar(person(id),id===Auth.getLoginId()),text);$('member-list').append(row);}renderMute();}
     else{chat.close();if(location.pathname==='/servers'&&!servers.length)UI.toast('첫 서버를 만들어 보세요.','왼쪽 + 버튼으로 서버를 만들거나 초대 코드로 참여할 수 있어요.');}
+    voice.setRoom(!selectedServer ? rooms.find(room=>room.id===selectedRoom) : null);
     renderNavigation();
   }
   async function openNotice(event){if(!rooms.some(r=>r.id===event.roomId)&&!servers.some(s=>s.channels.some(c=>c.id===event.roomId)))await reload();navigate(event.serverId?`/servers?server=${encodeURIComponent(event.serverId)}&channel=${encodeURIComponent(event.roomId)}`:`/chat/${encodeURIComponent(event.roomId)}`);}

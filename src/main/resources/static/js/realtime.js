@@ -88,7 +88,9 @@
             if (!current()) return;
             try {
               const event = JSON.parse(frame.body);
-              if (event.message?.id && event.message.roomId === event.roomId
+              if (event.type === 'VOICE_CALL' && event.call?.id && event.call.roomId === event.roomId) {
+                this.dispatchEvent(new CustomEvent('voice', {detail: event}));
+              } else if (event.message?.id && event.message.roomId === event.roomId
                   && ['MESSAGE_CREATED', 'MESSAGE_UPDATED', 'MESSAGE_DELETED'].includes(event.type)) {
                 this.dispatchEvent(new CustomEvent('notice', {detail: event}));
               }
@@ -133,7 +135,7 @@
     stop() {
       ++this.generation;
       clearTimeout(this.expiry);
-      this.ready = false;
+      this.state(false, '연결 종료');
       const client = this.client;
       this.client = null;
       this.readSubscription = null;
