@@ -15,24 +15,57 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Resolve development and test dependencies without application credentials
+      - name: Resolve supported platform without application credentials
         run: |
-          cat > /tmp/export.gradle <<'EOF'
-          allprojects { afterEvaluate {
-            dependencies.add('implementation', 'org.springframework.boot:spring-boot-starter-actuator')
-            dependencies.add('implementation', 'io.projectreactor.netty:reactor-netty')
-            dependencies.add('implementation', 'nl.martijndwars:web-push:5.1.2')
-            dependencies.add('implementation', 'org.bouncycastle:bcprov-jdk18on:1.86')
-            dependencies.add('testImplementation', 'org.junit.platform:junit-platform-console-standalone:1.10.3')
-            tasks.register('exportDependencies', Copy) {
-              from configurations.testRuntimeClasspath
-              into 'build/dependencies'
-            }
-          } }
+          cat > build.gradle.kts <<'EOF'
+          plugins {
+              id("org.springframework.boot") version "4.1.1"
+              id("io.spring.dependency-management") version "1.1.5"
+              java
+          }
+          group = "com.individual"
+          version = "0.0.1-SNAPSHOT"
+          java.sourceCompatibility = JavaVersion.VERSION_21
+          repositories { mavenCentral() }
+          dependencies {
+              implementation("org.springframework.boot:spring-boot-starter-webmvc")
+              implementation("org.springframework.boot:spring-boot-starter-actuator")
+              implementation("io.projectreactor.netty:reactor-netty")
+              implementation("nl.martijndwars:web-push:5.1.2") {
+                  exclude(group = "org.bouncycastle", module = "bcprov-jdk15on")
+                  exclude(group = "org.asynchttpclient", module = "async-http-client")
+              }
+              implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+              implementation("org.springframework.boot:spring-boot-starter-validation")
+              implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
+              implementation("org.springframework.boot:spring-boot-starter-websocket")
+              implementation("org.springframework:spring-messaging")
+              developmentOnly("org.springframework.boot:spring-boot-devtools")
+              implementation("org.springframework.boot:spring-boot-jackson2")
+              implementation("com.fasterxml.jackson.core:jackson-databind")
+              implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+              implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+              implementation("com.openai:openai-java:4.16.1")
+              runtimeOnly("org.webjars.npm:stomp__stompjs:7.3.0") { isTransitive = false }
+              runtimeOnly("org.webjars.npm:sockjs-client:1.6.1") { isTransitive = false }
+              testImplementation("org.springframework.boot:spring-boot-starter-test")
+              testImplementation("org.springframework.boot:spring-boot-resttestclient")
+              testRuntimeOnly("org.junit.platform:junit-platform-console-standalone")
+              implementation("org.springframework.security:spring-security-crypto")
+              implementation("org.springframework.boot:spring-boot-starter-security")
+              implementation("io.jsonwebtoken:jjwt-api:0.11.5")
+              runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
+              runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
+          }
+          tasks.withType<Test> { useJUnitPlatform() }
+          tasks.register<Copy>("exportDependencies") {
+              from(configurations.testRuntimeClasspath)
+              into("build/dependencies")
+          }
           EOF
-          bash ./gradlew -I /tmp/export.gradle exportDependencies --no-daemon
+          bash ./gradlew exportDependencies --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: roadmap-compile-dependencies
+          name: roadmap-supported-dependencies
           path: build/dependencies
           retention-days: 1
