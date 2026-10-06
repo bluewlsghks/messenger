@@ -43,6 +43,12 @@ ERP 운영에서 쌓은 문제 해결력에, MES·실시간 서비스 설계 경
 
 [기능](#features) · [구조](#architecture) · [실행](#getting-started) · [과제 처리 현황](#roadmap-status) · [검증](#tests--verification) · [운영 안내](docs/OPERATIONS.md)
 
+## 비용 정책 · 유료 부분 제외
+
+**이번 로드맵 구현은 새 결제·구독·유료 서버 생성 없이 진행합니다.** 채팅/파일/권한/세션/최대 4명 WebRTC는 기존 개발 환경에서 처리합니다. 검색과 브로커는 선택적인 직접 호스팅 **Elasticsearch Basic / RabbitMQ**만 대상으로 하며, 기본 실행에서 자동으로 시작하지 않습니다.
+
+관리형 유료 TURN/SFU·알림 SaaS·도메인 구매·유료 상시 호스팅·유료 AI 호출은 이번 범위에서 제외합니다. 기존 AI 코드는 유지하지만 **`APP_ALLOW_PAID_SERVICES=false` 기본 정책으로, 과거 AI 활성화 변수나 키만 남아 있어도 외부 응답 API를 호출하지 않습니다.** 로컬 PC의 자원·전기·인터넷과 기존 계약 서비스 비용까지 무료가 되는 것은 아닙니다. 세부 포함/제외·보안 패치·실제 검증 범위는 [NO_PAID_SERVICES.md](docs/NO_PAID_SERVICES.md)에 기록합니다.
+
 ## Resume Summary
 
 Java/Spring 백엔드와 MongoDB 기반 실시간 메신저를 설계하고, REST/STOMP 공통 권한 검사·메시지 변경 충돌·복합 커서·읽음·알림과 WebRTC를 구현했습니다. 후속 작업에서는 **클라이언트 요청 ID 멱등 저장, 메시지 문서 내 원자적 outbox, 승인 기반 친구 관계, 채널 권한, 세션 회전/폐기, 다인 WebRTC mesh 및 선택적 분산 브로커·검색 투영**을 추가했습니다. 구현·자동 테스트·운영 검증을 구분하며 수치 근거가 없는 처리량이나 배포 실적을 주장하지 않습니다.
@@ -80,7 +86,7 @@ Java/Spring 백엔드와 MongoDB 기반 실시간 메신저를 설계하고, RES
 | 운영 | 최소 health·보호된 metrics/읽기 전용 감사, 새 DB만 허용하는 복구 도구, 의존성 검사·로컬 재연결 soak |
 | 개발 공개 URL | IntelliJ Run/Debug와 선택적 Quick Tunnel 동시 시작, 정확한 Origin 적용, 강제 앱 종료 감시 guardian |
 
-Web Push·브로커·Elasticsearch·TURN은 **설정과 해당 서버/제공자 연결이 필요**합니다. 기본 실행에서 외부 유료 서비스나 Docker 서버를 자동 생성하지 않습니다. OpenAI는 기본 비활성이고 활성화하면 대화 문맥이 외부 API로 전달되므로 참여자 안내와 비용 정책이 필요합니다.
+Web Push·브로커·Elasticsearch·TURN은 **설정과 해당 서버/제공자 연결이 필요**합니다. 기본 실행에서 외부 유료 서비스나 Docker 서버를 자동 생성하지 않습니다. 기존 OpenAI 연동은 기본 비용 차단 정책으로 사용하지 않습니다. 후속 별도 동의 없이 유료 기능을 활성화하지 않습니다.
 
 ## Architecture
 
@@ -134,7 +140,8 @@ STOMP에 음성 바이트를 보내지 않습니다. 메시지 outbox는 **별�
 | `APP_PUBLIC_TUNNEL_ENABLED` | 기본 false. true이면 설치된 cloudflared와 함께 시작·자동 Origin 적용 |
 | `APP_PUBLIC_TUNNEL_EXECUTABLE` | 선택, cloudflared 실행 파일 경로 |
 | `APP_PUBLIC_TUNNEL_TIMEOUT_SECONDS` | 기본 90, 발급 제한 1~300초 |
-| `APP_OPENAI_ENABLED` / `OPENAI_API_KEY` | AI는 기본 false. 공개 터널 모드에서는 false 강제 적용 |
+| `APP_ALLOW_PAID_SERVICES` | 기본 **false**. 기존 AI 활성화 설정이 있어도 유료 API 연동을 차단; 이번 작업에서는 비활성 유지 |
+| `APP_OPENAI_ENABLED` / `OPENAI_API_KEY` | 기존 호환 설정. 단독으로는 비용 차단을 해제하지 않음; 공개 터널은 AI 비활성 |
 | `VOICE_STUN_URLS` | 기본 공개 STUN. 테스트에서 빈 값이면 외부 STUN을 사용하지 않음 |
 
 ```powershell
@@ -143,7 +150,7 @@ STOMP에 음성 바이트를 보내지 않습니다. 메시지 outbox는 **별�
 .\gradlew.bat bootRun
 ```
 
-Linux/macOS는 `bash ./gradlew test bootJar`, `bash ./gradlew bootRun`을 사용합니다. `/login`에서 가입/로그인하고 DM 또는 그룹/채널을 엽니다. 두 계정 테스트는 다른 브라우저 프로필/시크릿 창을 쓰고, 음성에는 HTTPS 또는 localhost와 마이크 권한이 필요합니다.
+Linux/macOS는 `bash ./gradlew test bootJar bootJar`, `bash ./gradlew bootRun`을 사용합니다. `/login`에서 가입/로그인하고 DM 또는 그룹/채널을 엽니다. 두 계정 테스트는 다른 브라우저 프로필/시크릿 창을 쓰고, 음성에는 HTTPS 또는 localhost와 마이크 권한이 필요합니다.
 
 ### 선택 설정
 
@@ -203,6 +210,8 @@ ID 고유 인덱스 충돌이 있으면 안전하게 시작을 거부합니다. 
 파일당 10MiB·계정당 100MiB, UI 메모리 최근 1,000개, mesh 최대 4명, 공유 미디어 상태 최대 64세션은 **구현상 제한**이며 벤치마크로 측정한 수용량이 아닙니다. 첨부 quota/고아 청크 및 보관 파일 정비, Jackson 3 완전 전환, 더 큰 통화방의 SFU, 운영 요청 제한/HA 정책은 추가 운영·확장 범위입니다.
 
 ## Tests & Verification
+
+비용 정책·백업 URI·친구 승인 컨테이너 검사·의존성 패치를 후속 반영했습니다. 로컬 Node 40개와 운영/비용 정책 검사 15개가 통과했습니다. 최신 Java/실제 백업/분산 인프라/OSV 결과는 CI에서 별도로 확인하며, 파일 수정만으로 통과를 주장하지 않습니다.
 
 실행 결과와 환경/fixture 범위는 [ROADMAP_VALIDATION.md](docs/ROADMAP_VALIDATION.md)에 기록합니다. 기존 [REFACTOR_VALIDATION.md](docs/REFACTOR_VALIDATION.md) 수치는 **이전 소스**의 기록입니다. 테스트 파일이 존재한다고 통과한 것으로 표시하지 않습니다.
 

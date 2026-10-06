@@ -54,7 +54,7 @@ class ChatMessagingServiceTest {
         assertFalse(ChatMessagingService.isAiCommand("/airplane"));
     }
     @Test void aiServiceIsOptionalWithoutApiKey() {
-        assertFalse(new OpenAiService("", false).isEnabled());
-        assertThrows(IllegalStateException.class, () -> new OpenAiService("", true));
+        assertFalse(new OpenAiService("", false, false).isEnabled());
+        assertThrows(IllegalStateException.class, () -> new OpenAiService("", true, true));
     }
 }

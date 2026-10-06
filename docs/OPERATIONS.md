@@ -2,6 +2,10 @@
 
 기본 실행에는 기존 **Java 21 + 개발 MongoDB + AES/JWT 키**만 필요합니다. 기존 데이터·키는 유지합니다. 이 문서는 설치/실행을 대신하지 않으며, 유료 서비스나 고정 도메인을 자동 생성하지 않습니다. 실제 검증 결과는 ROADMAP_VALIDATION.md를 확인합니다.
 
+## 유료 부분 제외
+
+[NO_PAID_SERVICES.md](NO_PAID_SERVICES.md)에 따라 유료 API·도메인·관리형 서버 생성은 제외합니다. 기본 `APP_ALLOW_PAID_SERVICES=false`가 이전 AI 활성화 설정보다 우선하므로 기존 키가 남아 있어도 AI API를 호출하지 않습니다. 검색은 로컬 Basic 라이선스만 사용하며 trial을 시작하지 않습니다. 새 유료 서비스를 켜지 마세요.
+
 ## 기본 실행
 
 브랜치 갱신 후 Gradle 동기화, `MessengerApplication` Run/Debug를 사용합니다. Boot 4 전환으로 직접 Spring Mongo 설정을 쓰는 실행 구성은 `spring.data.mongodb.*` 대신 `spring.mongodb.*`로 바꿉니다. 권장 환경 변수 `MONGODB_URI`는 이름이 같아 그대로 사용합니다. Java 21·Gradle Wrapper·main 클래스 위치는 유지했습니다.
@@ -38,7 +42,7 @@ APP_SEARCH_INDEX=messenger-messages-v1
 
 ## Web Push (선택)
 
-VAPID 키는 서버 운영자가 한 번 생성하여 환경변수로 관리합니다. `scripts/ops/GenerateVapidKeys.java`는 Java 21 단일 소스 실행으로 키를 **새 파일에만** 저장하며 이미 있는 파일은 덮어쓰지 않습니다.
+VAPID 키는 서버 운영자가 한 번 생성하여 환경변수로 관리할 수 있습니다. `scripts/ops/GenerateVapidKeys.java`는 Java 21 단일 소스 실행으로 키를 **새 파일에만** 저장하며 이미 있는 파일은 덮어쓰지 않습니다.
 
 ```text
 java scripts/ops/GenerateVapidKeys.java .local/push.env
@@ -84,7 +88,7 @@ python scripts/ops/mongo_backup.py backup --source messenger_dev --archive .loca
 python scripts/ops/mongo_backup.py restore --source messenger_dev --target messenger_restore_check --confirm-new-database messenger_restore_check --archive .local/backups/dev.archive.gz --writers-stopped
 ```
 
-연결은 `MONGODB_URI`에서 읽습니다. 복구는 다른 이름의 **새 DB만**, 기존 collection이 하나라도 있으면 거부합니다. 기존 DB 삭제/`--drop`/동일 DB 덮어쓰기는 없습니다. 다른 writer가 그 새 DB를 동시에 만들지 않게 관리자가 독점해야 합니다. 도중 실패한 복구 DB는 부분 데이터일 수 있으므로 성공으로 사용하지 말고 다른 새 DB에 다시 시도합니다.
+연결은 `MONGODB_URI`에서 읽습니다. URI의 기본 DB가 `--source`와 달라도 명시적인 source를 사용하며, 인증 DB는 원래 `authSource` 또는 기본 인증 DB로 보존합니다. 복구는 다른 이름의 **새 DB만**, 기존 collection이 하나라도 있으면 거부합니다. 기존 DB 삭제/`--drop`/동일 DB 덮어쓰기는 없습니다. 다른 writer가 그 새 DB를 동시에 만들지 않게 관리자가 독점해야 합니다. 도중 실패한 복구 DB는 부분 데이터일 수 있으므로 성공으로 사용하지 말고 다른 새 DB에 다시 시도합니다.
 
 인증 세션/일시 미디어/Push 구독/예산/재색인 작업은 백업·복구에서 제외합니다. 복원 후 사용자·방·메시지·파일 샘플과 건수를 검증하고, 로그인/키/인덱스·검색 재색인을 확인한 뒤 앱의 DB를 전환합니다. 백업은 암호화되지 않은 archive이므로 OS 암호화/접근 제어·별도 보관을 적용합니다. 원격 연결은 `--allow-remote`를 추가해야 하며 이 문서의 예시만으로 실제 운영 DB에 실행하지 않습니다.
 

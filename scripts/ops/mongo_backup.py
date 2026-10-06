@@ -12,7 +12,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 EPHEMERAL = ('auth_sessions', 'presence_leases', 'media_state', 'request_budgets',
              'push_subscriptions', 'push_jobs', 'search_reindex')
@@ -28,8 +28,26 @@ def validate_uri(uri: str, allow_remote: bool) -> None:
     parsed = urlsplit(uri)
     if parsed.scheme not in ('mongodb', 'mongodb+srv') or not parsed.hostname:
         raise ValueError('MONGODB_URI must be a MongoDB connection URI.')
-    if not allow_remote and parsed.hostname not in ('localhost', '127.0.0.1', '::1'):
+    if not allow_remote and (',' in parsed.netloc.rsplit('@', 1)[-1] or parsed.hostname not in ('localhost', '127.0.0.1', '::1')):
         raise ValueError('Remote connections require --allow-remote. Verify the target first.')
+
+def tool_uri(uri: str) -> str:
+    """Remove the default DB, preserving authentication, before explicit dump/namespace selection.
+
+    mongodump rejects a URI database that differs from --db. Leaving a URI database
+    during namespace-remapped restore can also narrow the archive unexpectedly.
+    Credentials remain only in the private temporary config, never CLI arguments.
+    """
+    parsed = urlsplit(uri)
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    options = {key.lower(): value for key, value in query}
+    original_db = unquote(parsed.path.lstrip('/'))
+    if parsed.username is not None and original_db and 'authsource' not in options:
+        # External mechanisms use $external rather than the URI's default database.
+        external = options.get('authmechanism', '').upper() in (
+            'GSSAPI', 'PLAIN', 'MONGODB-X509', 'MONGODB-AWS', 'MONGODB-OIDC')
+        query.append(('authSource', '$external' if external else original_db))
+    return urlunsplit((parsed.scheme, parsed.netloc, '/', urlencode(query), ''))
 
 def run_tool(command: list[str], *, env: dict[str,str] | None = None, timeout: int = 1800) -> str:
     # Mongo tools may echo connection details on failure. Do not propagate raw stderr.
@@ -75,7 +93,7 @@ def main() -> int:
         for collection in EPHEMERAL: command += ['--excludeCollection', collection]
     with tempfile.TemporaryDirectory(prefix='messenger-mongo-') as directory:
         config = Path(directory)/'connection.json'
-        config.write_text(json.dumps({'uri': uri}), encoding='utf-8'); config.chmod(0o600)
+        config.write_text(json.dumps({'uri': tool_uri(uri)}), encoding='utf-8'); config.chmod(0o600)
         command += [f'--config={config}']  # JSON is a YAML subset supported by Database Tools config.
         try: run_tool(command)
         except BaseException:

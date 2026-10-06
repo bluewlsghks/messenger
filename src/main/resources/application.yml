@@ -25,6 +25,8 @@ app:
     expiresMinutes: 15
   auth:
     secure-cookie: ${APP_AUTH_SECURE_COOKIE:false}
+  costs:
+    allow-paid-services: ${APP_ALLOW_PAID_SERVICES:false}
   openai:
     enabled: ${APP_OPENAI_ENABLED:false}
     api-key: ${OPENAI_API_KEY:}

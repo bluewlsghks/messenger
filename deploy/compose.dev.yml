@@ -25,6 +25,7 @@ services:
     environment:
       discovery.type: single-node
       xpack.security.enabled: 'false'
+      xpack.license.self_generated.type: basic
       ES_JAVA_OPTS: -Xms512m -Xmx512m
     ports: ['127.0.0.1:9200:9200']
     volumes: [search-data:/usr/share/elasticsearch/data]
