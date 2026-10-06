@@ -1,0 +1,38 @@
+name: Roadmap dependency workbench
+on:
+  push:
+    branches: [maintenance/roadmap-workbench-20261006]
+    paths: [.github/workflows/roadmap-dependencies.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Resolve development and test dependencies without application credentials
+        run: |
+          cat > /tmp/export.gradle <<'EOF'
+          allprojects { afterEvaluate {
+            dependencies.add('implementation', 'org.springframework.boot:spring-boot-starter-actuator')
+            dependencies.add('implementation', 'io.projectreactor.netty:reactor-netty')
+            dependencies.add('implementation', 'nl.martijndwars:web-push:5.1.2')
+            dependencies.add('implementation', 'org.bouncycastle:bcprov-jdk18on:1.86')
+            dependencies.add('testImplementation', 'org.junit.platform:junit-platform-console-standalone:1.10.3')
+            tasks.register('exportDependencies', Copy) {
+              from configurations.testRuntimeClasspath
+              into 'build/dependencies'
+            }
+          } }
+          EOF
+          bash ./gradlew -I /tmp/export.gradle exportDependencies --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: roadmap-compile-dependencies
+          path: build/dependencies
+          retention-days: 1
