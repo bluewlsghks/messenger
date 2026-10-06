@@ -2,14 +2,15 @@ package com.individual.messenger.security;
 
 import com.individual.messenger.domain.Room;
 import com.individual.messenger.domain.User;
-import com.individual.messenger.repo.ChatServerRepository;
-import com.individual.messenger.repo.RoomRepository;
-import com.individual.messenger.repo.UserRepository;
+import com.individual.messenger.repository.ChatServerRepository;
+import com.individual.messenger.repository.RoomRepository;
+import com.individual.messenger.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.security.Principal;
 
 /** Shared authorization for REST, STOMP SEND/SUBSCRIBE and outbound deliveries. */

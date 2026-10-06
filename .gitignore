@@ -37,3 +37,7 @@ logs/
 .env.public.*
 !.env.public.example
 /.public/
+
+# Python test caches
+__pycache__/
+*.py[cod]

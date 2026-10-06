@@ -1,17 +1,19 @@
 package com.individual.messenger.service;
 
+import com.individual.messenger.controller.ChatController;
 import com.individual.messenger.domain.Message;
 import com.individual.messenger.domain.User;
 import com.individual.messenger.security.ChatAccessService;
-import com.individual.messenger.api.ChatController;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.security.Principal;
 import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class ChatMessagingServiceTest {
     final MessageService messages = mock(MessageService.class);

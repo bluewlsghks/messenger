@@ -1,9 +1,9 @@
 package com.individual.messenger.config;
 
 import com.individual.messenger.domain.ChatServer;
-import com.individual.messenger.domain.ServerInvite;
 import com.individual.messenger.domain.Message;
 import com.individual.messenger.domain.Room;
+import com.individual.messenger.domain.ServerInvite;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.index.PartialIndexFilter;
 import org.springframework.data.mongodb.core.query.Criteria;
+
 import java.time.Duration;
 
 /** Additive indexes only. Legacy duplicate string keys must be resolved before rollout. */

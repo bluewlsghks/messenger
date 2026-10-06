@@ -2,8 +2,8 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.ChatServer;
 import com.individual.messenger.domain.ServerInvite;
-import com.individual.messenger.repo.ChatServerRepository;
-import com.individual.messenger.repo.ServerInviteRepository;
+import com.individual.messenger.repository.ChatServerRepository;
+import com.individual.messenger.repository.ServerInviteRepository;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

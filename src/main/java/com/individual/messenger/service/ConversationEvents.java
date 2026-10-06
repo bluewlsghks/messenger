@@ -2,14 +2,16 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.Message;
 import com.individual.messenger.domain.Room;
-import com.individual.messenger.repo.ChatServerRepository;
-import com.individual.messenger.repo.RoomRepository;
+import com.individual.messenger.domain.RoomType;
+import com.individual.messenger.repository.ChatServerRepository;
+import com.individual.messenger.repository.RoomRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+
 import java.util.LinkedHashSet;
 import java.util.List;
 

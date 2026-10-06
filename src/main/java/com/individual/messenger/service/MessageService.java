@@ -1,7 +1,8 @@
 package com.individual.messenger.service;
 
 import com.individual.messenger.domain.Message;
-import com.individual.messenger.repo.MessageRepository;
+import com.individual.messenger.repository.MessageRepository;
+import com.individual.messenger.security.ChatAccessService;
 import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -12,6 +13,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;

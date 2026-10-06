@@ -30,7 +30,8 @@ def passed(name):
     print('PASS voice:', name, flush=True)
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(args=['--use-fake-device-for-media-stream'])
+    # Fake hardware and browser permission UI; actual microphone/permission UX is separate QA.
+    browser = p.chromium.launch(args=['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'])
     pages = []
     errors = []
     contexts = []
@@ -82,6 +83,7 @@ with sync_playwright() as p:
         starts = []
         a.on('request', lambda request: starts.append(request.post_data_json)
              if request.method == 'POST' and urlparse(request.url).path == '/api/voice/calls' else None)
+        a.bring_to_front()
         a.locator('#voice-start').click()
         expect(b.locator('#voice-accept')).to_be_visible(timeout=15000)
         expect(sibling.locator('#voice-accept')).to_be_visible(timeout=15000)
@@ -94,6 +96,7 @@ with sync_playwright() as p:
         response = ec.request.get(BASE + '/api/voice/config')
         assert response.status == 401
         passed('Outsiders cannot control calls; ICE configuration requires authentication')
+        b.bring_to_front()
         b.locator('#voice-accept').click()
         expect(a.locator('#voice-state')).to_have_text('통화 중', timeout=30000)
         expect(b.locator('#voice-state')).to_have_text('통화 중', timeout=30000)
@@ -124,6 +127,7 @@ with sync_playwright() as p:
         passed('Hangup closes both peer connections and releases microphone tracks')
         a.goto(BASE + '/chat/' + room['id']); connected(a); a.wait_for_timeout(3100)
         previous_requests = b.evaluate('window.__voiceMediaRequests')
+        a.bring_to_front()
         a.locator('#voice-start').click(); expect(b.locator('#voice-decline')).to_be_visible(timeout=15000)
         b.locator('#voice-decline').click()
         expect(a.locator('#voice-panel')).not_to_be_visible(timeout=15000)
@@ -147,6 +151,7 @@ with sync_playwright() as p:
                       panelVisible: !!document.querySelector('#voice-panel:not([hidden])'),
                       state: document.querySelector('#voice-state')?.textContent,
                       toasts: document.querySelector('#toast-stack')?.textContent,
+                      focused: document.hasFocus(), visibility: document.visibilityState,
                       captures: window.__voiceMediaRequests,
                       peers: (window.__voicePeers || []).map(p => ({connection: p.connectionState,
                         signaling: p.signalingState, ice: p.iceConnectionState}))

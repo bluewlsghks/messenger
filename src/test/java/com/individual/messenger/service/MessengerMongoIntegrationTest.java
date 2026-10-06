@@ -2,9 +2,9 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.ChatServer;
 import com.individual.messenger.domain.Message;
-import com.individual.messenger.repo.ChatServerRepository;
-import com.individual.messenger.repo.ServerInviteRepository;
-import com.individual.messenger.repo.MessageRepository;
+import com.individual.messenger.repository.ChatServerRepository;
+import com.individual.messenger.repository.MessageRepository;
+import com.individual.messenger.repository.ServerInviteRepository;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import org.junit.jupiter.api.*;
@@ -13,15 +13,17 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.repository.support.MongoRepositoryFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /** Uses only an isolated randomly named test database. Never points at MONGODB_URI. */
 @EnabledIfEnvironmentVariable(named = "MONGODB_TEST_URI", matches = ".+")

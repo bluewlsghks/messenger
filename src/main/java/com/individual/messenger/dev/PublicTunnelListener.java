@@ -1,9 +1,5 @@
 package com.individual.messenger.dev;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.Map;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.boot.context.event.ApplicationFailedEvent;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -13,6 +9,11 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.Map;
 
 /** Opt-in launcher listener; runs after Boot has loaded application.yml and environment variables. */
 public final class PublicTunnelListener implements ApplicationListener<ApplicationEvent>, Ordered, AutoCloseable {

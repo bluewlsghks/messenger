@@ -2,9 +2,10 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.ReadCursor;
 import com.individual.messenger.domain.Room;
-import com.individual.messenger.repo.ReadCursorRepository;
+import com.individual.messenger.repository.ReadCursorRepository;
 import com.individual.messenger.security.ChatAccessService;
 import org.springframework.stereotype.Service;
+
 import java.time.Instant;
 
 @Service

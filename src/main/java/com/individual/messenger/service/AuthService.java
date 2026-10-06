@@ -1,18 +1,17 @@
 package com.individual.messenger.service;
 
-import com.individual.messenger.api.dto.RegisterDtos.RegisterRequest;
-import com.individual.messenger.api.dto.RegisterDtos.RegisterResponse;
-import com.individual.messenger.api.dto.LoginDtos.LoginRequest;
-import com.individual.messenger.api.dto.LoginDtos.LoginResponse;
 import com.individual.messenger.crypto.CryptoService;
 import com.individual.messenger.domain.User;
-import com.individual.messenger.repo.UserRepository;
+import com.individual.messenger.dto.auth.LoginRequest;
+import com.individual.messenger.dto.auth.LoginResponse;
+import com.individual.messenger.dto.auth.RegisterRequest;
+import com.individual.messenger.dto.auth.RegisterResponse;
+import com.individual.messenger.exception.DuplicateLoginIdException;
+import com.individual.messenger.repository.UserRepository;
 import com.individual.messenger.security.JwtUtil;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Map;
@@ -24,8 +23,6 @@ public class AuthService {
     private final CryptoService crypto;
     private final JwtUtil jwt;
     private final PasswordEncoder passwordEncoder; // ✅ DI로 주입
-    private final BCryptPasswordEncoder bCrypt = new BCryptPasswordEncoder();
-
 
     public AuthService(UserRepository userRepo, CryptoService crypto, JwtUtil jwt, PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
@@ -34,39 +31,28 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @Transactional
     public RegisterResponse register(RegisterRequest req) {
-        // ✅ 입력값 정규화
-        final String loginId = req.id == null ? "" : req.id.trim();
-        final String userName = req.userName == null ? "" : req.userName.trim();
+        final String loginId = req.id == null ? "" : req.id.strip();
+        final String userName = req.userName == null ? "" : req.userName.strip();
         final String rawPw = req.password == null ? "" : req.password;
-        final String phone = req.phoneNumber == null ? "" : req.phoneNumber.trim();
-
-        if (loginId.isEmpty() || userName.isEmpty() || rawPw.isEmpty() || phone.isEmpty()) {
-            throw new IllegalArgumentException("필수 입력이 누락되었습니다.");
+        if (loginId.isBlank() || userName.isBlank() || rawPw.isBlank()) {
+            throw new IllegalArgumentException("아이디, 표시 이름, 비밀번호는 필수입니다.");
         }
-
-        // ✅ 사전 중복 체크(참고: 경쟁 조건은 아래 DuplicateKeyException으로 한 번 더 막음)
         if (userRepo.existsByLoginId(loginId)) {
-            throw new IllegalArgumentException("이미 존재하는 ID 입니다.");
+            throw new DuplicateLoginIdException();
         }
-
-        User u = new User();
-        u.loginId = req.id;
-        u.userName = req.userName;
-        u.passwordHash = bCrypt.encode(req.password);
-        u.phoneEnc = crypto.encryptString(req.phoneNumber);
-        u.createdAt = Instant.now();
-        userRepo.save(u);
-
+        User user = new User();
+        user.loginId = loginId;
+        user.userName = userName;
+        user.passwordHash = passwordEncoder.encode(rawPw);
+        user.createdAt = Instant.now();
+        // New registrations no longer collect phone numbers; existing user documents are not changed.
         try {
-            userRepo.save(u);
-        } catch (DuplicateKeyException e) {
-            // ✅ 인덱스 기반 경쟁 조건 방지
-            throw new IllegalArgumentException("이미 존재하는 ID 입니다.");
+            userRepo.save(user);
+        } catch (DuplicateKeyException duplicate) {
+            throw new DuplicateLoginIdException(duplicate);
         }
-
-        return new RegisterResponse(u.loginId, u.userName);
+        return new RegisterResponse(user.loginId, user.userName);
     }
 
     public LoginResponse login(LoginRequest req) {
@@ -104,16 +90,9 @@ public class AuthService {
         return new LoginResponse(token, u.loginId, u.userName);
     }
 
-    // 필요 시 외부에서 레포 접근
-    public UserRepository userRepo() { return userRepo; }
-
-    public String newAccessToken(String loginId, String userName) {
-        return jwt.createToken(loginId, Map.of("name", userName));
+    public LoginResponse refresh(String loginId) {
+        User user = userRepo.findByLoginId(loginId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return new LoginResponse(jwt.createToken(loginId, Map.of("name", user.userName)), loginId, user.userName);
     }
-
-    // AuthService 안에 추가
-    public java.util.Optional<com.individual.messenger.domain.User> getByLoginId(String loginId) {
-        return userRepo.findByLoginId(loginId);
-    }
-
 }

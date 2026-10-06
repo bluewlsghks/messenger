@@ -1,8 +1,7 @@
 plugins {
     id("org.springframework.boot") version "3.3.3"
     id("io.spring.dependency-management") version "1.1.5"
-    kotlin("jvm") version "1.9.24"
-    kotlin("plugin.spring") version "1.9.24"
+    java
 }
 group = "com.individual"
 version = "0.0.1-SNAPSHOT"
@@ -22,10 +21,6 @@ dependencies {
     // Browser libraries are served locally from the jar; the workspace needs no CDN or npm build.
     runtimeOnly("org.webjars.npm:stomp__stompjs:7.3.0") { isTransitive = false }
     runtimeOnly("org.webjars.npm:sockjs-client:1.6.1") { isTransitive = false }
-    compileOnly("org.projectlombok:lombok:1.18.32")
-    annotationProcessor("org.projectlombok:lombok:1.18.32")
-    testCompileOnly("org.projectlombok:lombok:1.18.32")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.32")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     implementation("org.springframework.security:spring-security-crypto")
     implementation("org.springframework.boot:spring-boot-starter-security")

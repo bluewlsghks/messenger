@@ -84,7 +84,7 @@ WebSocket/STOMP와 JWT 인증을 기반으로 시작해, **1:1 DM·그룹 대화
 | 기능 | 현재 구현 내용 |
 |---|---|
 | 통합 작업 화면 | 친구·DM·그룹·서버/채널 이동, 서버 레일·대화 목록·대화 영역·멤버 패널, 다크/라이트 테마, 모바일 접이식 메뉴, 검색과 키보드 탐색 |
-| 회원·프로필 | 회원가입/로그인, JWT 발급, 내 정보 조회, 표시 이름 변경; 비밀번호 BCrypt 저장, 전화번호 암호화 저장 |
+| 회원·프로필 | 회원가입/로그인, JWT 발급, 내 정보 조회, 표시 이름 변경; 비밀번호 BCrypt 저장, 신규 가입 전화번호 수집 제외(기존 회원 정보 유지) |
 | 친구·DM·그룹 | 친구 추가/목록/삭제, 이름·ID 검색, DM 생성 및 기존 방 재사용, 본인 포함 3~50명 그룹 생성 |
 | 서버·채널·초대 | 서버 생성 시 `#일반` 자동 생성, 소유자의 채널 생성/초대 코드 발급, 코드로 참여, 서버 멤버 조회 |
 | 대화 내역·읽음 | 메시지 저장 및 실시간 수신, 날짜 구분, 복합 커서 기반 이전 내역 더 보기, 화면에 보이는 메시지 읽음 처리, 읽음 표시와 DB 기반 안 읽은 개수 집계 |
@@ -174,12 +174,12 @@ AI 명령: 공통 전송 경로 → 별도 실행기 → OpenAI → AI_BOT 저�
 | 서버·채널 확장 | [ChatServer](src/main/java/com/individual/messenger/domain/ChatServer.java)에 소유자·멤버·채널을 포함하고 `Message.roomId`에 방 ID 또는 채널 ID를 저장 |
 | DM 중복 및 ID 충돌 | [Room](src/main/java/com/individual/messenger/domain/Room.java)의 대소문자를 보존하는 정렬·Base64 조합 키, [RoomService](src/main/java/com/individual/messenger/service/RoomService.java)의 중복 키 경쟁 처리 |
 | 동일 시각 메시지의 페이지 경계 | [MessageService](src/main/java/com/individual/messenger/service/MessageService.java)의 `createdAt + _id` 복합 정렬/커서와 관련 인덱스 |
-| 수정·삭제 경쟁 | [MessageActionController](src/main/java/com/individual/messenger/api/MessageActionController.java)의 작성자·방·현재 버전 조건부 `findAndModify`, 충돌 시 HTTP 409 |
+| 수정·삭제 경쟁 | [MessageActionService](src/main/java/com/individual/messenger/service/MessageActionService.java)의 작성자·방·현재 버전 조건부 `findAndModify`, 충돌 시 HTTP 409 |
 | 초대·채널 생성 경쟁 | [ChatServerService](src/main/java/com/individual/messenger/service/ChatServerService.java)의 조건부 갱신, `$addToSet` 참여, 난수 코드의 SHA-256 해시 저장 및 만료 검증 |
 | 실시간 알림 대상 제한 | [ConversationEvents](src/main/java/com/individual/messenger/service/ConversationEvents.java)에서 실제 멤버에게 개인 이벤트를 발행하고 수신 단계에서 재인가 |
-| 음성통화 권한·경쟁 | [VoiceCallService](src/main/java/com/individual/messenger/voice/VoiceCallService.java)의 사용자당 통화 예약, 수락 탭 고정, 역할별 명령 검사와 만료 회수 |
+| 음성통화 권한·경쟁 | [VoiceCallService](src/main/java/com/individual/messenger/service/VoiceCallService.java)의 사용자당 통화 예약, 수락 탭 고정, 역할별 명령 검사와 만료 회수 |
 | 비동기 마이크·연결 정리 | [voice-call.js](src/main/resources/static/js/voice-call.js)의 통화별 수명 검사, 취소 뒤 도착한 마이크 해제, ICE 버퍼와 직렬 처리 |
-| TURN 비밀값 분리 | [VoiceConfiguration](src/main/java/com/individual/messenger/voice/VoiceConfiguration.java)의 서버 전용 공유 비밀값과 2시간 유효 HMAC 자격증명 생성 |
+| TURN 비밀값 분리 | [VoiceConfiguration](src/main/java/com/individual/messenger/config/VoiceConfiguration.java)의 서버 전용 공유 비밀값과 2시간 유효 HMAC 자격증명 생성 |
 | 실행마다 바뀌는 공개 URL | [PublicTunnelListener](src/main/java/com/individual/messenger/dev/PublicTunnelListener.java)가 환경 준비 이벤트에서 터널을 시작하고 현재 Origin을 보안 Bean 초기화 전에 주입. [QuickTunnelProcess](src/main/java/com/individual/messenger/dev/QuickTunnelProcess.java)가 자식 프로세스·격리 설정·종료를 관리 |
 
 ## Security & Access Rules
@@ -292,6 +292,16 @@ HTTP 인증은 `Authorization: Bearer <JWT>` 헤더를 사용하며 세션은 `S
 
 통화만 실패하면 마이크 권한, HTTPS/localhost 여부, 상대방 실시간 연결, 자동 재생 차단, TURN 필요 여부를 순서대로 확인합니다. STUN 성공이 음성 직접 연결 성공을 보장하지는 않습니다.
 
+## Registration & Structure Cleanup
+
+**2026-10-06 변경:** 회원가입은 **아이디·표시 이름·비밀번호**만 받습니다. 전화번호 입력은 HTML 주석으로 남기고 화면·요청·필수 검증에서 제외했습니다. 예전 클라이언트가 `phoneNumber`를 보내도 무시하며 신규 계정에는 저장하지 않습니다. 기존 회원의 암호화된 전화번호/레거시 데이터와 AES/JWT 키는 그대로 유지합니다.
+
+회원가입의 중복 `save()`를 한 번으로 줄이고 정규화한 ID/이름을 실제 저장값에도 적용했습니다. 중복 ID 충돌(409)과 입력 오류(400)는 구분합니다. Java 구조는 **controller → service → repository**, 별도 **dto**로 통합했습니다. 메시지 변경·검색, 프로필 갱신, 미확인 집계의 컨트롤러 직접 DB 접근을 제거하고 음성 프로토콜 타입을 서비스/컨트롤러에서 독립시켰습니다. 기존 REST/STOMP 주소·응답과 MongoDB 도메인 패키지는 유지합니다.
+
+실제 참조를 확인한 미사용 Java/템플릿/정적 파일 21개를 정리하고, 사용하지 않는 Kotlin JVM/Spring 플러그인·Lombok 의존성/프로세서를 제거했습니다. 빌드 스크립트는 Kotlin DSL(`build.gradle.kts`)을 유지하지만 애플리케이션은 Java 플러그인으로 빌드합니다. 실행/배포 스크립트와 현재 UI 모듈은 유지합니다.
+
+자세한 파일 목록·유지 근거는 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md), 검증 범위는 [REFACTOR_VALIDATION.md](docs/REFACTOR_VALIDATION.md)에 기록합니다. 기존 이력서 소개는 보존하며 이 변경 자체가 master 병합이나 실제 배포를 뜻하지 않습니다.
+
 ## Getting Started
 
 ### 준비 및 소스 받기
@@ -361,6 +371,10 @@ IntelliJ 실행 연동은 [INTELLIJ_PUBLIC_TUNNEL.md](docs/INTELLIJ_PUBLIC_TUNNE
 
 ## Tests & Verification
 
+### 회원가입·구조 정리 검증
+
+2026-10-06 검증 실행 `37406369985`: Java/MongoDB/bootJar **success** (테스트 96, 실패/오류 0, 건너뜀 0), JavaScript/배포/터널 검사 **success**, 실제 Chromium 통합 화면·가입·음성 검사 **success**. 검증 범위 및 제한은 [REFACTOR_VALIDATION.md](docs/REFACTOR_VALIDATION.md)에 기록합니다.
+
 ### IntelliJ 자동 터널 추가 시점의 검증
 
 2026-10-06 Java 21/Linux에서 [오프라인 자식 프로세스 검사](tests/java/QuickTunnelSmoke.java) **17개 통과**를 확인했습니다. 실제 cloudflared 대신 Java 테스트 프로세스로 URL 검증, 격리 설정, 파일 생성/삭제, 정상·중복 종료, 시간 초과, 조기/실행 중 종료, 포트 충돌, 누락된 실행 파일, 시작 중 인터럽트를 검사했습니다. Cloudflare에 접속하거나 실제 메신저를 공개하지 않았습니다.
@@ -371,7 +385,7 @@ IntelliJ 실행 연동은 [INTELLIJ_PUBLIC_TUNNEL.md](docs/INTELLIJ_PUBLIC_TUNNE
 
 2026-10-06 로컬 Node 22 실행에서 신규 [음성 JavaScript 회귀 테스트](src/test/js/voice-call.test.cjs) **16개가 통과**했습니다. 변경한 JavaScript 문법과 브라우저 테스트 Python 문법도 확인했습니다.
 
-[VoiceCallServiceTest](src/test/java/com/individual/messenger/voice/VoiceCallServiceTest.java) 12개와 [VoiceConfigurationTest](src/test/java/com/individual/messenger/voice/VoiceConfigurationTest.java) 3개, [실제 브라우저 음성 시나리오](src/test/e2e/voice_calls.py) 8개를 추가하고 기존 Messenger CI에 연결했습니다. **테스트 파일 추가 자체를 Java 빌드나 브라우저 실행 성공으로 간주하지 않습니다. 실행 결과는 해당 PR의 CI 로그·아티팩트에서 확인해야 합니다.**
+[VoiceCallServiceTest](src/test/java/com/individual/messenger/service/VoiceCallServiceTest.java) 12개와 [VoiceConfigurationTest](src/test/java/com/individual/messenger/config/VoiceConfigurationTest.java) 3개, [실제 브라우저 음성 시나리오](src/test/e2e/voice_calls.py) 8개를 추가하고 기존 Messenger CI에 연결했습니다. **테스트 파일 추가 자체를 Java 빌드나 브라우저 실행 성공으로 간주하지 않습니다. 실행 결과는 해당 PR의 CI 로그·아티팩트에서 확인해야 합니다.**
 
 음성 브라우저 테스트는 실제 HTTP·JWT·STOMP·RTCPeerConnection과 양방향 수신 RTP 패킷을 확인하도록 작성했습니다. 입력 장치는 Chromium 가상 마이크이므로 실제 마이크/스피커 음질, Safari·모바일 백그라운드, 회사망/모바일망, TURN 중계 운영 검증은 포함하지 않습니다.
 
@@ -410,7 +424,7 @@ node --test (Get-ChildItem .\src\test\js\*.cjs).FullName
 | 알림·상태·커뮤니티 | 종료된 브라우저의 Web Push, 실제 온라인/입력 중 상태, 친구 승인·차단, 서버 탈퇴·강퇴·삭제/소유권 이전, 초대 철회와 세부 역할/채널별 권한 |
 | 대화 확장 | 첨부파일, 답장·스레드·멘션, 다인 음성채널·영상·화면 공유, 대용량 내역 UI 가상화 |
 | 음성통화 운영 | 실제 기기·외부망·TURN 검증, 장치 선택·통화 기록·벨소리·백그라운드 수신, ICE restart, 통화 상태의 분산 관리. 현재 1:1/단일 JVM만 지원 |
-| 인증·데이터 정비 | Refresh Token 회전/폐기, 사용자별 요청 제한, 가입 입력 정규화/중복 저장 경로 정비, 레거시 개인정보·ID 및 고유 인덱스 점검, 읽음 모델 통합 |
+| 인증·데이터 정비 | Refresh Token 회전/폐기, 사용자별 요청 제한, 가입 입력 정책 추가 보강, 레거시 개인정보·ID 및 고유 인덱스 점검, 읽음 모델 통합 |
 | 운영·확장 | 분산 브로커/다중 인스턴스, 모니터링·백업/복구, 의존성 보안 검토, 실제 운영망/OS 알림과 부하·장기 연결 검증 |
 | 개발용 공개 터널 | 실제 Windows IntelliJ·Cloudflare 외부망 검증. 임시 주소·로컬 PC 실행을 전제로 하며 고정 주소·상시 운영·강제 Kill 시 정리는 보장하지 않음 |
 | 검색 학습·확장 계획 | 현재 검색은 MongoDB 기반. Elasticsearch 검색과 비동기 인덱싱, Index/Analyzer 설계는 후속 학습·적용 과제 |
@@ -421,25 +435,23 @@ node --test (Get-ChildItem .\src\test\js\*.cjs).FullName
 
 ```text
 src/main/java/com/individual/messenger/
-  api/       REST 및 STOMP 진입점
-  security/  JWT, HTTP 보안, 공통 인가, STOMP 인터셉터
-  service/   친구·방·서버·메시지·개인 이벤트·AI 처리
-  voice/     1:1 통화 REST·상태·개인 이벤트·STUN/TURN 설정
-  dev/       선택적 개발 터널·Origin 적용·자식 프로세스 수명주기
-  domain/    MongoDB 문서 모델
-  repo/      MongoRepository 인터페이스
-  config/    WebSocket, 인덱스, AI 실행기 등
-  crypto/    개인정보 암호화
-  web/       Thymeleaf 페이지 라우팅
-  rt/        기존 SSE 관련 코드
+  controller/  REST·STOMP·페이지 진입점 (기존 API 경로 유지)
+  dto/         요청/응답·공용 음성 프로토콜, auth/ 인증 DTO
+  service/     인증·회원·메시지·알림·서버·음성 유스케이스
+  repository/  MongoRepository 인터페이스·커스텀 조회/갱신
+  domain/      MongoDB 문서 (기존 패키지/컬렉션 유지)
+  config/      WebSocket·인덱스·AI 실행기·음성 설정
+  security/    JWT·권한·HTTP/STOMP 보안
+  exception/   예외와 공통 오류 응답
+  crypto/      기존 개인정보 암복호화 호환
+  dev/         선택적 IntelliJ 공개 URL 실행기
 src/main/resources/
-  templates/workspace.html   통합 작업 화면
-  static/js/                 인증·연결·대화·알림·음성·화면 로직
-  static/css/                화면 스타일
-src/test/                    Java, JavaScript, 브라우저, 배포, PowerShell 테스트
-tests/java/                  외부 의존성 없는 터널 프로세스 검사
-scripts/                     공개 접속 및 배포 실행기
-.github/workflows/           CI 정의
+  templates/   login.html · register.html · workspace.html · access-denied.html
+  static/      실제 사용하는 CSS/JavaScript
+src/test/      Java·JavaScript·브라우저·배포·PowerShell 테스트
+tests/java/    터널 독립 프로세스 검사
+scripts/       수동 공개 접속·배포 실행기
+docs/          구조·기능·설정·검증 문서
 ```
 
 | 문서 | 내용 |

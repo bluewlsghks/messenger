@@ -229,3 +229,8 @@ with sync_playwright() as p:
         context.close()
     browser.close()
     print(f'Browser end-to-end scenarios passed: {len(checks)}', flush=True)
+
+# Keep signup covered by the standard workspace CI entrypoint.
+if __name__ == '__main__':
+    from registration import run as registration_checks
+    registration_checks()
