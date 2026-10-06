@@ -19,6 +19,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Compile launcher and offline subprocess checks
-        run: javac -encoding UTF-8 -d build/tunnel-smoke src/main/java/com/individual/messenger/dev/QuickTunnelProcess.java tests/java/QuickTunnelSmoke.java
+        run: javac -encoding UTF-8 -d build/tunnel-smoke src/main/java/com/individual/messenger/dev/QuickTunnelProcess.java src/main/java/com/individual/messenger/dev/TunnelGuardian.java tests/java/QuickTunnelSmoke.java tests/java/TunnelGuardianSmoke.java
       - name: Run without real cloudflared or network
         run: java -cp build/tunnel-smoke com.individual.messenger.dev.QuickTunnelSmoke
+      - name: Owned child cleanup after forced parent termination
+        run: java -cp build/tunnel-smoke com.individual.messenger.dev.TunnelGuardianSmoke

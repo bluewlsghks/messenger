@@ -74,6 +74,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:8080/login >/dev/null
           python3 src/test/e2e/run_workspace.py
           python3 src/test/e2e/voice_calls.py
+          python3 src/test/e2e/roadmap.py
       - name: Retain tested source snapshot
         if: always()
         run: git archive --format=zip --output=build/tested-source.zip HEAD
