@@ -107,7 +107,12 @@ public final class QuickTunnelSmoke {
     private static void fake(String[] args) throws Exception {
         List<String> values = List.of(args);
         Path config = Path.of(values.get(values.indexOf("--config") + 1));
-        Files.writeString(config.getParent().resolve("fake.pid"), Long.toString(ProcessHandle.current().pid()));
+        // The parent may interrupt as soon as the PID file exists. Publish it only
+        // after writing is complete; an empty/partial PID is not a ready signal.
+        Path temporaryPid = config.getParent().resolve("fake.pid.tmp");
+        Files.writeString(temporaryPid, Long.toString(ProcessHandle.current().pid()));
+        Files.move(temporaryPid, config.getParent().resolve("fake.pid"),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE);
         if (!Files.readString(config).equals("{}\n") || !values.contains("--no-autoupdate") || !values.contains("http2")
                 || !values.get(values.indexOf("--url") + 1).startsWith("http://127.0.0.1:")) System.exit(4);
         switch (args[1]) {
