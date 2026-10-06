@@ -26,6 +26,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         if(relay) {
+            config.configureBrokerChannel().interceptors(new BrokerDestinationCodec(false));
             if(login.isBlank() || password.isBlank())throw new IllegalArgumentException("Broker relay credentials must be configured explicitly");
             var relayRegistration=config.enableStompBrokerRelay("/topic","/queue").setRelayHost(host).setRelayPort(port)
                     .setClientLogin(login).setClientPasscode(password).setSystemLogin(login).setSystemPasscode(password)
@@ -46,11 +47,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registration.taskExecutor(new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor())
                 .corePoolSize(4).maxPoolSize(16).queueCapacity(2000);
         registration.interceptors(security);
+        if (relay) registration.interceptors(new BrokerDestinationCodec(false));
     }
     @Override
     public void configureClientOutboundChannel(ChannelRegistration registration) {
         registration.taskExecutor(new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor())
                 .corePoolSize(4).maxPoolSize(16).queueCapacity(2000);
+        if (relay) registration.interceptors(new BrokerDestinationCodec(true));
         registration.interceptors(security.outbound());
     }
     @Override
