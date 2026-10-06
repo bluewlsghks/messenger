@@ -11,7 +11,7 @@ repositories { mavenCentral() }
 // See docs/NO_PAID_SERVICES.md for the upstream advisories and verification scope.
 extra["jackson-2-bom.version"] = "2.21.7"
 extra["jackson-bom.version"] = "3.1.7"
-extra["tomcat.version"] = "11.0.25"
+extra["tomcat.version"] = "11.0.26"
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")

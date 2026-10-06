@@ -20,7 +20,7 @@
 
 `APP_ALLOW_PAID_SERVICES=false`가 기본입니다. 이전 실행 설정에 `APP_OPENAI_ENABLED=true`나 API 키가 남아 있어도, 이 정책이 false면 **OpenAIClient를 생성하거나 응답 API를 호출하지 않습니다.** `/ai` 호환 명령 경로 자체는 삭제하지 않습니다. 이번 작업에서는 이 허용값을 true로 설정하지 않으며 유료 기능 테스트도 하지 않습니다. 이는 애플리케이션의 알려진 유료 AI 연동 차단이지, 임의로 변경한 원격 인프라의 청구까지 탐지하는 시스템은 아닙니다.
 
-Elasticsearch는 Compose와 CI 모두 `xpack.license.self_generated.type: basic`을 명시합니다. CI는 실제 `/_license` 응답도 Basic인지 검사하며 trial/상용 기능을 전제로 테스트하지 않습니다.
+Elasticsearch는 Compose와 CI 모두 `xpack.license.self_generated.type: basic`을 명시합니다. CI는 실제 `/_license` 응답도 Basic인지 검사하며 trial/상용 기능을 전제로 테스트하지 않습니다. 클러스터가 먼저 시작되어도 라이선스 생성은 늦을 수 있으므로 최대 60초 동안 활성 Basic을 기다립니다. trial/유료 등급 응답은 즉시 거부하며, 대기 실패를 성공으로 간주하지 않습니다.
 
 ## 이번 후속 수정
 
@@ -28,7 +28,7 @@ Elasticsearch는 Compose와 CI 모두 `xpack.license.self_generated.type: basic`
 
 배포 컨테이너 검사는 친구 요청 직후 친구가 아님을 확인하고 상대의 수락 후 양쪽 친구 목록과 메시지 저장을 검증합니다. 새 승인 정책을 테스트를 위해 되돌리지 않았습니다.
 
-앞선 `1b49240` 실행의 OSV 보고서에서 발견된 Jackson/Tomcat 항목을 위해 공개 패치 버전 Jackson 2.21.7 / 3.1.7, Tomcat 11.0.25를 적용했습니다. 기존 JSON 호환 방식을 유지하며 전체 테스트와 정확히 resolve된 의존성 스캔으로 확인합니다. 검사 실패나 발견 항목은 무시하지 않습니다. 성공 수치는 [ROADMAP_VALIDATION.md](ROADMAP_VALIDATION.md)의 해당 실행 결과만 근거로 합니다.
+앞선 `1b49240` 실행의 OSV 보고서에서 발견된 Jackson/Tomcat 항목을 위해 공개 패치 버전 Jackson 2.21.7 / 3.1.7, Tomcat 11.0.26를 적용했습니다. 기존 JSON 호환 방식을 유지하며 전체 테스트와 정확히 resolve된 의존성 스캔으로 확인합니다. 검사 실패나 발견 항목은 무시하지 않습니다. 성공 수치는 [ROADMAP_VALIDATION.md](ROADMAP_VALIDATION.md)의 해당 실행 결과만 근거로 합니다.
 
 ## 별도 실제 환경 검증
 

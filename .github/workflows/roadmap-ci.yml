@@ -58,7 +58,7 @@ jobs:
           echo /tmp/messenger-tools >> "$GITHUB_PATH"
           for i in $(seq 1 90); do curl -fs http://127.0.0.1:9200/_cluster/health && break; sleep 1; done
           curl -fs http://127.0.0.1:9200/_cluster/health
-          curl -fs http://127.0.0.1:9200/_license | python3 -c 'import json,sys; assert json.load(sys.stdin)["license"]["type"] == "basic", "Only the Basic license is allowed"'
+          python3 scripts/validate/elasticsearch_ready.py
       - name: Build, Java and MongoDB regressions
         run: bash ./gradlew test bootJar dependencyCoordinates --no-daemon
       - name: JavaScript and offline operations checks
