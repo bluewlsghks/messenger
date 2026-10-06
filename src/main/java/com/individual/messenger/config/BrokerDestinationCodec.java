@@ -49,6 +49,9 @@ public final class BrokerDestinationCodec implements ChannelInterceptor {
         }
         headers.setDestination(translated);
         headers.setNativeHeader("destination", translated);
+        // The next framework stage sets the system session or restores the
+        // original user destination. Freeze only at the framework boundary.
+        headers.setLeaveMutable(true);
         return MessageBuilder.createMessage(message.getPayload(), headers.getMessageHeaders());
     }
 }
