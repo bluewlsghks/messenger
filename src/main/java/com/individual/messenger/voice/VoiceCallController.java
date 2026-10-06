@@ -21,7 +21,7 @@ public class VoiceCallController {
         this.calls = calls; this.configuration = configuration; this.access = access;
     }
     public record Start(@NotNull UUID callId, @NotNull UUID clientId, @NotBlank @Size(max = 100) String roomId) {}
-    public record Candidate(@NotBlank @Size(max = 2048) String candidate,
+    public record Candidate(@NotNull @Size(max = 2048) String candidate,
                             @Size(max = 32) String sdpMid, @Min(0) @Max(65535) Integer sdpMLineIndex,
                             @Size(max = 256) String usernameFragment) {}
     public record Command(@NotNull UUID clientId, @NotNull VoiceCallService.Action action,

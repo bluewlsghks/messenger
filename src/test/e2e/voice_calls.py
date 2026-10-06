@@ -34,6 +34,21 @@ with sync_playwright() as p:
     pages = []
     errors = []
     contexts = []
+    diagnostics = []
+    def observe(page):
+        pages.append(page)
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        def response_done(response):
+            path = urlparse(response.url).path
+            if path.startswith('/api/voice/'):
+                request = response.request
+                body = request.post_data_json if request.method == 'POST' else None
+                diagnostics.append({'method': request.method, 'path': path,
+                                    'action': body.get('action') if isinstance(body, dict) else None,
+                                    'status': response.status})
+        page.on('response', response_done)
+        page.on('requestfailed', lambda request: diagnostics.append({
+            'failedPath': urlparse(request.url).path, 'failure': request.failure}))
     def account(name):
         context = browser.new_context(permissions=['microphone'], viewport={'width': 1440, 'height': 960})
         contexts.append(context)
@@ -50,10 +65,9 @@ with sync_playwright() as p:
         assert response.status == expected, f'{method} {path}: {response.status}'
         return response.json() if response.status not in (204,) and expected < 400 else None
     def login(context, identifier):
-        page = context.new_page(); pages.append(page)
-        page.on('pageerror', lambda error: errors.append(str(error)))
+        page = context.new_page(); observe(page)
         page.goto(BASE + '/login'); page.locator('#login-id').fill(identifier)
-        page.locator('#login-password').fill(PASSWORD); page.locator('#auth-submit').click()
+        page.locator('#login-password').fill(PASSWORD); page.get_by_role('button', name='로그인', exact=True).click()
         expect(page.locator('#connection-state')).to_have_text('연결됨', timeout=30000)
         return page
     def connected(page):
@@ -61,7 +75,7 @@ with sync_playwright() as p:
     try:
         ac, aid, at = account('alice'); bc, bid, bt = account('bob'); ec, eid, et = account('outsider')
         a = login(ac, aid); b = login(bc, bid)
-        sibling = bc.new_page(); pages.append(sibling); sibling.on('pageerror', lambda error: errors.append(str(error)))
+        sibling = bc.new_page(); observe(sibling)
         sibling.goto(BASE + '/home'); connected(sibling)
         room = api(ac, at, 'POST', '/api/rooms/dm', {'peerId': bid})
         a.goto(BASE + '/chat/' + room['id']); connected(a)
@@ -127,8 +141,22 @@ with sync_playwright() as p:
     except BaseException:
         for index, page in enumerate(pages):
             if not page.is_closed():
-                try: page.screenshot(path=str(OUT / f'voice-failure-{index}.png'), full_page=True, timeout=5000)
+                try:
+                    diagnostics.append({'page': index, 'state': page.evaluate('''() => ({
+                      path: location.pathname,
+                      panelVisible: !!document.querySelector('#voice-panel:not([hidden])'),
+                      state: document.querySelector('#voice-state')?.textContent,
+                      toasts: document.querySelector('#toast-stack')?.textContent,
+                      captures: window.__voiceMediaRequests,
+                      peers: (window.__voicePeers || []).map(p => ({connection: p.connectionState,
+                        signaling: p.signalingState, ice: p.iceConnectionState}))
+                    })''')})
+                    page.screenshot(path=str(OUT / f'voice-failure-{index}.png'), full_page=True, timeout=5000)
                 except Exception: pass
+        # Only method/action/status and UI state; never serialize auth headers, SDP or ICE addresses.
+        (OUT / 'voice-diagnostics.json').write_text(json.dumps({'checks': checks, 'errors': errors,
+            'events': diagnostics}, ensure_ascii=False, indent=2), encoding='utf-8')
+        print('Voice failure diagnostics:', json.dumps(diagnostics, ensure_ascii=False), flush=True)
         raise
     finally:
         for context in contexts: context.close()

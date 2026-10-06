@@ -118,9 +118,10 @@ public class VoiceCallService {
                     requireSdp(command.sdp()); call.answer = true;
                 } else {
                     var candidate = command.candidate();
-                    if (candidate == null || candidate.candidate() == null || candidate.candidate().isBlank()
+                    if (candidate == null || candidate.candidate() == null
                             || candidate.candidate().length() > 2048
-                            || (candidate.sdpMid() == null && candidate.sdpMLineIndex() == null))
+                            || (!candidate.candidate().isEmpty() && (candidate.candidate().isBlank()
+                            || (candidate.sdpMid() == null && candidate.sdpMLineIndex() == null))))
                         throw bad("유효한 ICE candidate가 필요합니다.");
                     if ((caller ? call.callerIce : call.calleeIce) >= 256)
                         throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "연결 후보 수 제한을 초과했습니다.");

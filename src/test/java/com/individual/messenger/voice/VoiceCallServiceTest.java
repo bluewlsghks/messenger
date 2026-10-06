@@ -99,6 +99,19 @@ class VoiceCallServiceTest {
         for (int i = 0; i < 256; i++) service.command(alice, callId, command);
         status(HttpStatus.TOO_MANY_REQUESTS, () -> service.command(alice, callId, command));
     }
+    @Test void forwardsEndOfCandidatesMarkerButRejectsWhitespace() {
+        start(); accept();
+        var marker = new VoiceCallController.Candidate("", null, null, null);
+        try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+            assertTrue(factory.getValidator().validate(marker).isEmpty());
+        }
+        assertDoesNotThrow(() -> service.command(alice, callId,
+                new VoiceCallController.Command(aliceClient, VoiceCallService.Action.ICE, null, marker)));
+        verify(events).send(eq("bob"), any(), eq("ICE"), eq(bobClient), isNull(), eq(marker), isNull());
+        var invalid = new VoiceCallController.Candidate(" ", "0", 0, null);
+        status(HttpStatus.BAD_REQUEST, () -> service.command(alice, callId,
+                new VoiceCallController.Command(aliceClient, VoiceCallService.Action.ICE, null, invalid)));
+    }
     @Test void expiresUnansweredCallsAndReleasesBothUsers() {
         start(); clock.now += VoiceCallService.RING_MS; service.sweep();
         verify(events).send(eq("alice"), any(), eq("ENDED"), isNull(), isNull(), isNull(), eq("NO_ANSWER"));

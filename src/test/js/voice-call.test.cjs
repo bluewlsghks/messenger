@@ -117,3 +117,10 @@ test('mute controls audio track enabled state', () => {
   voice.toggleMute(); assert.equal(track.enabled, false); voice.toggleMute(); assert.equal(track.enabled, true);
 });
 test('stopStream tolerates a missing stream', () => assert.doesNotThrow(() => stopStream(null)));
+test('end-of-candidates marker is delivered intact instead of failing the call', async () => {
+  const voice = harness(), session = voice.current, applied = [];
+  session.pc = {remoteDescription: {type: 'answer'}, async addIceCandidate(candidate) { applied.push(candidate); }};
+  const marker = {candidate: '', sdpMid: null, sdpMLineIndex: null};
+  await voice.signal(session, {action: 'ICE', candidate: marker});
+  assert.deepEqual(applied, [marker]); assert.equal(voice.current, session);
+});
