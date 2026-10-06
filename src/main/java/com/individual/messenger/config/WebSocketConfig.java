@@ -10,6 +10,12 @@ import org.springframework.web.socket.config.annotation.*;
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    @Value("${app.broker.relay.enabled:false}") private boolean relay;
+    @Value("${app.broker.relay.host:127.0.0.1}") private String host;
+    @Value("${app.broker.relay.port:61613}") private int port;
+    @Value("${app.broker.relay.login:}") private String login;
+    @Value("${app.broker.relay.password:}") private String password;
+    @Value("${app.broker.relay.virtual-host:/}") private String virtualHost;
     private final StompSecurityInterceptor security;
     private final String[] allowedOrigins;
     public WebSocketConfig(StompSecurityInterceptor security,
@@ -19,7 +25,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/sub", "/queue");
+        if(relay) {
+            if(login.isBlank() || password.isBlank())throw new IllegalArgumentException("Broker relay credentials must be configured explicitly");
+            var relayRegistration=config.enableStompBrokerRelay("/topic","/queue").setRelayHost(host).setRelayPort(port)
+                    .setClientLogin(login).setClientPasscode(password).setSystemLogin(login).setSystemPasscode(password)
+                    .setVirtualHost(virtualHost).setSystemHeartbeatSendInterval(10000).setSystemHeartbeatReceiveInterval(10000);
+            relayRegistration.setUserDestinationBroadcast("/topic/messenger-unresolved-users");
+            relayRegistration.setUserRegistryBroadcast("/topic/messenger-user-registry");
+        } else config.enableSimpleBroker("/topic","/sub","/queue");
         config.setApplicationDestinationPrefixes("/pub");
         config.setUserDestinationPrefix("/user");
         config.setPreservePublishOrder(true);
@@ -30,10 +43,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.taskExecutor(new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor())
+                .corePoolSize(4).maxPoolSize(16).queueCapacity(2000);
         registration.interceptors(security);
     }
     @Override
     public void configureClientOutboundChannel(ChannelRegistration registration) {
+        registration.taskExecutor(new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor())
+                .corePoolSize(4).maxPoolSize(16).queueCapacity(2000);
         registration.interceptors(security.outbound());
     }
     @Override

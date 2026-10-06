@@ -13,6 +13,10 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import java.util.UUID;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,18 +42,89 @@ public class MessageService {
         return save(roomId, sender, sender, content);
     }
     public Message save(String roomId, String senderId, String senderName, String content) {
-        if (roomId == null || roomId.isBlank() || senderId == null || senderId.isBlank()) {
+        return store(roomId, senderId, senderName, content, null, null, null, List.of(), List.of()).message();
+    }
+
+    public record Stored(Message message, boolean created) {}
+
+    public Stored store(String roomId, String senderId, String senderName, String content,
+                        String requestId, String replyToId, String threadId,
+                        List<String> attachments, List<String> mentions) {
+        if (roomId == null || roomId.isBlank() || senderId == null || senderId.isBlank())
             throw new IllegalArgumentException("채팅방과 발신자가 필요합니다.");
-        }
+        String text = validateContent(content);
+        String key = requestId == null ? UUID.randomUUID().toString() : validRequestId(requestId);
+        // Fingerprint is based on the original command, not the editable message content.
+        String fingerprint = fingerprint(roomId, text, replyToId, attachments);
+        Message existing = messageRepo.findBySenderIdAndClientRequestId(senderId, key).orElse(null);
+        if (existing != null) return repeated(existing, fingerprint);
         Message message = new Message();
-        message.roomId = roomId;
-        message.senderId = senderId;
+        message.roomId = roomId; message.senderId = senderId;
         message.senderName = senderName == null || senderName.isBlank() ? senderId : senderName;
-        message.content = validateContent(content);
-        Message saved = messageRepo.save(message);
-        // One topic and one broadcast path for REST, STOMP and bot messages.
-        messaging.convertAndSend("/sub/chat/" + roomId, saved);
-        return saved;
+        message.content = text; message.clientRequestId = key; message.requestFingerprint = fingerprint;
+        message.replyToId = replyToId; message.threadId = threadId;
+        message.attachmentIds = List.copyOf(attachments); message.mentions = List.copyOf(mentions);
+        message.publicationPending = true; message.publishAfter = Instant.now();
+        try { return new Stored(messageRepo.insert(message), true); }
+        catch (DuplicateKeyException race) {
+            return repeated(messageRepo.findBySenderIdAndClientRequestId(senderId, key).orElseThrow(() -> race), fingerprint);
+        }
+    }
+    /** Check a retry before validating mutable parent/file state; current access is still required. */
+    public Message replay(String roomId, String senderId, String content, String requestId,
+                          String replyToId, List<String> attachments) {
+        if (requestId == null) return null;
+        String key = validRequestId(requestId);
+        Message existing = messageRepo.findBySenderIdAndClientRequestId(senderId, key).orElse(null);
+        if (existing == null) return null;
+        List<String> files = attachments == null ? List.of() : attachments.stream().distinct().toList();
+        return repeated(existing, fingerprint(roomId, validateContent(content), replyToId, files)).message();
+    }
+    private static String fingerprint(String roomId, String text, String replyToId, List<String> attachments) {
+        return ChatServerService.digest(roomId.length() + ":" + roomId + text.length() + ":" + text
+                + ":" + String.valueOf(replyToId) + ":" + String.join(",", attachments));
+    }
+    private static Stored repeated(Message message, String fingerprint) {
+        if (!fingerprint.equals(message.requestFingerprint))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "같은 전송 ID를 다른 메시지에 사용할 수 없습니다.");
+        return new Stored(message, false);
+    }
+    private static String validRequestId(String value) {
+        try {
+            UUID id = UUID.fromString(value);
+            if (!id.toString().equals(value)) throw new IllegalArgumentException();
+            return value;
+        } catch (IllegalArgumentException invalid) {
+            throw new IllegalArgumentException("clientRequestId는 소문자 UUID여야 합니다.");
+        }
+    }
+
+    /** Full reconciliation has no 100-message total cap; each page is bounded to 100. */
+    public List<Message> sync(String roomId, String afterId, int limit) {
+        checkLimit(limit);
+        Criteria match = Criteria.where("roomId").is(roomId);
+        if (afterId != null) {
+            if (!ObjectId.isValid(afterId)) throw new IllegalArgumentException("잘못된 동기화 커서입니다.");
+            match = match.and("id").gt(new ObjectId(afterId));
+        }
+        return mongo.find(Query.query(match).with(Sort.by("id")).limit(limit), Message.class);
+    }
+    public List<Message> thread(String roomId, String rootId, String afterId, int limit) {
+        checkLimit(limit);
+        if (!ObjectId.isValid(rootId)) throw new IllegalArgumentException("잘못된 스레드입니다.");
+        Criteria match = new Criteria().andOperator(Criteria.where("roomId").is(roomId),
+                new Criteria().orOperator(Criteria.where("id").is(new ObjectId(rootId)), Criteria.where("threadId").is(rootId)));
+        if (afterId != null) {
+            if (!ObjectId.isValid(afterId)) throw new IllegalArgumentException("잘못된 커서입니다.");
+            match = new Criteria().andOperator(match, Criteria.where("id").gt(new ObjectId(afterId)));
+        }
+        return mongo.find(Query.query(match).with(Sort.by("id")).limit(limit), Message.class);
+    }
+    public void markAllRead(String roomId, String readerId) {
+        // One authoritative read model, including the old /api/dm read endpoint.
+        mongo.updateMulti(Query.query(Criteria.where("roomId").is(roomId).and("createdAt").lte(Instant.now())
+                .and("senderId").ne(readerId).and("readBy").ne(readerId)),
+                new Update().addToSet("readBy", readerId), Message.class);
     }
     public static String validateContent(String content) {
         if (content == null || content.isBlank() || content.length() > MAX_CONTENT_LENGTH) {
@@ -100,7 +175,7 @@ public class MessageService {
         if (matched.isEmpty()) return;
         Query updateQuery = Query.query(Criteria.where("id").in(matched).and("roomId").is(roomId));
         mongo.updateMulti(updateQuery, new Update().addToSet("readBy", readerId), Message.class);
-        messaging.convertAndSend("/sub/chat/" + roomId + "/read", Map.of("messageIds", matched, "readerId", readerId));
+        messaging.convertAndSend("/topic/chat/" + roomId + "/read", (Object) Map.of("messageIds", matched, "readerId", readerId));
     }
     public List<Message> findRecentMessages(String roomId, int limit) {
         return history(roomId, null, null, limit);

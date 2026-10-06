@@ -1,57 +1,78 @@
 package com.individual.messenger.controller;
 
-import com.individual.messenger.dto.auth.LoginRequest;
-import com.individual.messenger.dto.auth.LoginResponse;
-import com.individual.messenger.dto.auth.RegisterRequest;
-import com.individual.messenger.dto.auth.RegisterResponse;
+import com.individual.messenger.dto.auth.*;
+import com.individual.messenger.domain.AuthSession;
 import com.individual.messenger.exception.DuplicateLoginIdException;
 import com.individual.messenger.service.AuthService;
+import com.individual.messenger.service.SessionService;
+import com.individual.messenger.security.JwtUtil;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
+import org.springframework.web.server.ResponseStatusException;
+import java.security.Principal;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-
-    private final AuthService authService;
-    public AuthController(AuthService authService) { this.authService = authService; }
-
-    /** 회원가입: 201 Created / 409 Conflict(중복 ID) */
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
-        try {
-            RegisterResponse res = authService.register(req);
-            return ResponseEntity.status(HttpStatus.CREATED).body(res);
-        } catch (DuplicateLoginIdException dup) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("error", "DUPLICATE_ID", "message", dup.getMessage()));
+    private final AuthService auth;
+    private final SessionService sessions;
+    private final JwtUtil jwt;
+    private final boolean secureCookie;
+    private final Set<String> origins;
+    public AuthController(AuthService auth, SessionService sessions, JwtUtil jwt,
+                          @Value("${app.auth.secure-cookie:false}") boolean secureCookie,
+                          @Value("${app.allowed-origins:http://localhost:8080,http://127.0.0.1:8080}") String[] origins) {
+        this.auth = auth; this.sessions = sessions; this.jwt = jwt; this.secureCookie = secureCookie || java.util.Arrays.stream(origins).anyMatch(origin -> origin.startsWith("https://"));
+        this.origins = Set.copyOf(Arrays.asList(origins));
+    }
+    @PostMapping("/register") public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
+        try { return ResponseEntity.status(HttpStatus.CREATED).body(auth.register(req)); }
+        catch (DuplicateLoginIdException duplicate) {
+            return ResponseEntity.status(409).body(Map.of("error", "DUPLICATE_ID", "message", duplicate.getMessage()));
         }
     }
-
-    /** 로그인: 200 OK / 401 Unauthorized(자격 증명 오류) */
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
+    @PostMapping("/login") public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         try {
-            LoginResponse res = authService.login(req);
-            return ResponseEntity.ok(res);
-        } catch (IllegalArgumentException bad) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "INVALID_CREDENTIALS", "message", bad.getMessage()));
+            LoginResponse user = auth.login(req);
+            return issue(sessions.open(user.id), user.userName);
+        } catch (IllegalArgumentException invalid) {
+            return ResponseEntity.status(401).body(Map.of("error", "INVALID_CREDENTIALS", "message", "잘못된 자격 증명입니다."));
         }
     }
-
-    /**
-     * 액세스 토큰 재발급:
-     * - JwtAuthFilter가 Authentication 설정해두었다는 전제
-     * - 200 OK
-     */
-    @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refresh(Authentication auth) {
-        return ResponseEntity.ok(authService.refresh(auth.getName()));
+    @PostMapping("/refresh") public ResponseEntity<LoginResponse> refresh(HttpServletRequest request,
+            @CookieValue(name = "messenger_refresh", required = false) String token) {
+        sameOriginCommand(request);
+        var issued = sessions.rotate(token);
+        return issue(issued, auth.refresh(issued.userId()).userName);
+    }
+    @PostMapping("/logout") public ResponseEntity<Void> logout(HttpServletRequest request,
+            @CookieValue(name = "messenger_refresh", required = false) String token) {
+        sameOriginCommand(request); sessions.logout(token);
+        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO).toString()).build();
+    }
+    @GetMapping("/sessions") public List<AuthSession> list(Principal principal) { return sessions.list(principal.getName()); }
+    @DeleteMapping("/sessions/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revoke(Principal principal, @PathVariable String id) { sessions.revokeOwned(id, principal.getName()); }
+    private ResponseEntity<LoginResponse> issue(SessionService.Issued session, String name) {
+        String access = jwt.createToken(session.userId(), Map.of("name", name == null ? session.userId() : name, "sid", session.sessionId()));
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.SET_COOKIE, cookie(session.refreshToken(), Duration.between(Instant.now(), session.expiresAt())).toString())
+                .body(new LoginResponse(access, session.userId(), name));
+    }
+    private ResponseCookie cookie(String token, Duration age) {
+        return ResponseCookie.from("messenger_refresh", token).httpOnly(true).secure(secureCookie)
+                .sameSite("Strict").path("/api/auth").maxAge(age).build();
+    }
+    private void sameOriginCommand(HttpServletRequest request) {
+        // Cookie endpoints require a non-simple header plus an exact Origin allowlist.
+        String origin = request.getHeader("Origin");
+        if (!"XMLHttpRequest".equals(request.getHeader("X-Requested-With")) || (origin != null && !origins.contains(origin)))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "동일 출처의 요청만 허용됩니다.");
     }
 }

@@ -22,6 +22,9 @@ import java.util.List;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+    @org.springframework.beans.factory.annotation.Autowired private com.individual.messenger.service.RequestBudget budget;
+    @Value("${app.rate-limits.enabled:true}") private boolean rateLimitsEnabled;
+    @org.springframework.beans.factory.annotation.Autowired private OperatorAccess operators;
     private final JwtAuthFilter jwtFilter;
     private final String[] allowedOrigins;
     public SecurityConfig(JwtAuthFilter jwtFilter,
@@ -37,14 +40,18 @@ public class SecurityConfig {
                         .accessDeniedHandler(new ApiAccessDeniedHandler()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/**", "/api/operations/**").access((authentication,context) ->
+                                new org.springframework.security.authorization.AuthorizationDecision(operators.allows(context.getRequest())))
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/login", "/register", "/error").permitAll()
-                        .requestMatchers("/js/**", "/css/**", "/images/**", "/favicon.ico", "/webjars/**").permitAll()
+                        .requestMatchers("/js/**", "/css/**", "/images/**", "/favicon.ico", "/sw.js", "/webjars/**").permitAll()
                         .requestMatchers("/ws-stomp/**").permitAll()
                         .requestMatchers("/", "/home", "/rooms", "/friends", "/chat/**", "/servers").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(b -> b.disable()).formLogin(b -> b.disable());
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(new RequestBudgetFilter(budget, rateLimitsEnabled), JwtAuthFilter.class);
         return http.build();
     }
     @Bean
@@ -52,8 +59,8 @@ public class SecurityConfig {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOrigins(Arrays.asList(allowedOrigins));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        cfg.setAllowCredentials(false);
+        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+        cfg.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;

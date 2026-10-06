@@ -41,8 +41,8 @@ class PublicOriginHttpIntegrationTest {
 
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry properties) {
-        properties.add("spring.data.mongodb.uri", () -> System.getenv("MONGODB_TEST_URI"));
-        properties.add("spring.data.mongodb.database", () -> DATABASE);
+        properties.add("spring.mongodb.uri", () -> System.getenv("MONGODB_TEST_URI"));
+        properties.add("spring.mongodb.database", () -> DATABASE);
     }
     @AfterAll void cleanup() { mongo.getDb().drop(); }
 

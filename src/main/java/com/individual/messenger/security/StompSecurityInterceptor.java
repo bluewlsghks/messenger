@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 
 @Component
 public class StompSecurityInterceptor implements ChannelInterceptor {
-    private static final Pattern ROOM_TOPIC = Pattern.compile("^/sub/chat/([A-Za-z0-9_-]{1,100})(?:/read)?$");
+    private static final Pattern ROOM_TOPIC = Pattern.compile("^/(?:sub|topic)/chat/([A-Za-z0-9_-]{1,100})(?:/read)?$");
     private static final Set<String> SEND_DESTINATIONS = Set.of("/pub/chat.send", "/pub/ai.ask");
     private static final Set<String> USER_TOPICS = Set.of("/user/queue/errors", "/user/queue/events");
     private final Map<String, SessionIdentity> sessions = new ConcurrentHashMap<>();
@@ -56,6 +56,10 @@ public class StompSecurityInterceptor implements ChannelInterceptor {
         if (command == StompCommand.SUBSCRIBE) {
             if (destination == null || !USER_TOPICS.contains(destination)) access.requireMember(roomId(destination), identity);
             else access.actor(identity);
+            if(destination!=null && destination.startsWith("/sub/chat/"))headers.setDestination(destination.replaceFirst("^/sub/","/topic/"));
+            if(destination!=null && USER_TOPICS.contains(destination)) {
+                headers.setNativeHeader("auto-delete","true");headers.setNativeHeader("durable","false");headers.setNativeHeader("exclusive","true");
+            }
         } else if (command == StompCommand.SEND) {
             if (destination == null || !SEND_DESTINATIONS.contains(destination)) throw denied();
         } else if (command != StompCommand.UNSUBSCRIBE) throw denied();
@@ -73,8 +77,11 @@ public class StompSecurityInterceptor implements ChannelInterceptor {
                 if (destination != null && destination.startsWith("/queue/errors-user")) return message;
                 try {
                     if (destination != null && destination.startsWith("/queue/events-user")) {
-                        if (!identity.getName().equals(headers.getHeader("chatRecipient"))) return null;
+                        Object recipient=headers.getHeader("chatRecipient");
+                        if(recipient==null)recipient=StompHeaderAccessor.wrap(message).getFirstNativeHeader("chat-recipient");
+                        if (!identity.getName().equals(recipient)) return null;
                         Object room = headers.getHeader("chatRoomId");
+                        if(room==null)room=StompHeaderAccessor.wrap(message).getFirstNativeHeader("chat-room");
                         if (!(room instanceof String roomId)) return null;
                         access.requireMember(roomId, identity);
                     } else access.requireMember(roomId(destination), identity);

@@ -8,6 +8,9 @@ from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get('MESSENGER_E2E_URL', 'http://127.0.0.1:8080')
 assert urlparse(BASE).hostname in ('localhost', '127.0.0.1'), 'Disposable localhost app only'
+SECOND = os.environ.get('MESSENGER_SECOND_URL', BASE)
+assert urlparse(SECOND).hostname in ('localhost', '127.0.0.1')
+origins = {}
 OUT = pathlib.Path('build/e2e-artifacts')
 OUT.mkdir(parents=True, exist_ok=True)
 PASSWORD = 'Voice_Test_42!'
@@ -31,7 +34,7 @@ def passed(name):
 
 with sync_playwright() as p:
     # Fake hardware and browser permission UI; actual microphone/permission UX is separate QA.
-    browser = p.chromium.launch(args=['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'])
+    browser = p.chromium.launch(executable_path=os.environ.get("MESSENGER_CHROMIUM"), args=['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'])
     pages = []
     errors = []
     contexts = []
@@ -53,21 +56,22 @@ with sync_playwright() as p:
     def account(name):
         context = browser.new_context(permissions=['microphone'], viewport={'width': 1440, 'height': 960})
         contexts.append(context)
+        origins[context] = SECOND if name == 'bob' else BASE
         identifier = f'voice_{name}_{RUN}'
-        response = context.request.post(BASE + '/api/auth/register', data={
+        response = context.request.post(origins[context] + '/api/auth/register', data={
             'id': identifier, 'userName': name, 'password': PASSWORD, 'phoneNumber': '01012345678'})
         assert response.status == 201, f'register: {response.status}'
-        response = context.request.post(BASE + '/api/auth/login', data={'id': identifier, 'password': PASSWORD})
+        response = context.request.post(origins[context] + '/api/auth/login', data={'id': identifier, 'password': PASSWORD})
         assert response.status == 200, f'login: {response.status}'
         context.add_init_script(INSTRUMENT)
         return context, identifier, response.json()['token']
     def api(context, token, method, path, data=None, expected=200):
-        response = context.request.fetch(BASE + path, method=method, headers={'Authorization': 'Bearer ' + token}, data=data)
+        response = context.request.fetch(origins[context] + path, method=method, headers={'Authorization': 'Bearer ' + token}, data=data)
         assert response.status == expected, f'{method} {path}: {response.status}'
         return response.json() if response.status not in (204,) and expected < 400 else None
     def login(context, identifier):
         page = context.new_page(); observe(page)
-        page.goto(BASE + '/login'); page.locator('#login-id').fill(identifier)
+        page.goto(origins[context] + '/login'); page.locator('#login-id').fill(identifier)
         page.locator('#login-password').fill(PASSWORD); page.get_by_role('button', name='로그인', exact=True).click()
         expect(page.locator('#connection-state')).to_have_text('연결됨', timeout=30000)
         return page
@@ -77,13 +81,14 @@ with sync_playwright() as p:
         ac, aid, at = account('alice'); bc, bid, bt = account('bob'); ec, eid, et = account('outsider')
         a = login(ac, aid); b = login(bc, bid)
         sibling = bc.new_page(); observe(sibling)
-        sibling.goto(BASE + '/home'); connected(sibling)
+        sibling.goto(SECOND + '/home'); connected(sibling)
         room = api(ac, at, 'POST', '/api/rooms/dm', {'peerId': bid})
         a.goto(BASE + '/chat/' + room['id']); connected(a)
         starts = []
         a.on('request', lambda request: starts.append(request.post_data_json)
              if request.method == 'POST' and urlparse(request.url).path == '/api/voice/calls' else None)
         a.bring_to_front()
+        if SECOND != BASE: a.wait_for_timeout(11000)  # Broker user-registry broadcast interval.
         a.locator('#voice-start').click()
         expect(b.locator('#voice-accept')).to_be_visible(timeout=15000)
         expect(sibling.locator('#voice-accept')).to_be_visible(timeout=15000)

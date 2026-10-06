@@ -18,7 +18,8 @@ public class ChatController {
 
     @MessageMapping("/chat.send")
     public void onSend(@Payload Map<String, String> payload, Principal principal) {
-        chat.send(payload.get("roomId"), payload.get("content"), principal);
+        chat.send(new com.individual.messenger.dto.MessageRequests.SendRequest(payload.get("roomId"),
+                payload.get("content"), payload.get("clientRequestId"), payload.get("replyToId"), null), principal);
     }
     @MessageMapping("/ai.ask")
     public void onAiAsk(@Payload Map<String, String> payload, Principal principal) {

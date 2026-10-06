@@ -16,5 +16,5 @@ public final class VoiceCallDtos {
 
     public record View(UUID id, String roomId, String callerId, String calleeId,
                        UUID callerClientId, UUID calleeClientId, String status, long expiresAt) {}
-    public enum Action { ACCEPT, DECLINE, END, OFFER, ANSWER, ICE, PING }
+    public enum Action { ACCEPT, DECLINE, END, OFFER, ANSWER, ICE, PING, RESTART_REQUEST, RESTART_OFFER, RESTART_ANSWER }
 }

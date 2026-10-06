@@ -22,12 +22,12 @@ public class ServerIndexConfiguration implements ApplicationRunner {
     public ServerIndexConfiguration(MongoTemplate mongo) { this.mongo = mongo; }
     @Override
     public void run(ApplicationArguments args) {
-        mongo.indexOps(ChatServer.class).ensureIndex(new Index().on("members", Sort.Direction.ASC).named("server_members"));
-        mongo.indexOps(ChatServer.class).ensureIndex(new Index().on("channels.id", Sort.Direction.ASC).named("server_channels"));
-        mongo.indexOps(ServerInvite.class).ensureIndex(new Index().on("expiresAt", Sort.Direction.ASC).expire(Duration.ZERO).named("invite_expiry"));
-        mongo.indexOps(Message.class).ensureIndex(new Index().on("roomId", Sort.Direction.ASC)
+        mongo.indexOps(ChatServer.class).createIndex(new Index().on("members", Sort.Direction.ASC).named("server_members"));
+        mongo.indexOps(ChatServer.class).createIndex(new Index().on("channels.id", Sort.Direction.ASC).named("server_channels"));
+        mongo.indexOps(ServerInvite.class).createIndex(new Index().on("expiresAt", Sort.Direction.ASC).expire(Duration.ZERO).named("invite_expiry"));
+        mongo.indexOps(Message.class).createIndex(new Index().on("roomId", Sort.Direction.ASC)
                 .on("createdAt", Sort.Direction.DESC).on("_id", Sort.Direction.DESC).named("room_message_cursor"));
-        mongo.indexOps(Room.class).ensureIndex(new Index().on("membersKey", Sort.Direction.ASC).unique()
+        mongo.indexOps(Room.class).createIndex(new Index().on("membersKey", Sort.Direction.ASC).unique()
                 .partial(PartialIndexFilter.of(Criteria.where("membersKey").type(2))).named("room_member_key_unique_strings"));
     }
 }

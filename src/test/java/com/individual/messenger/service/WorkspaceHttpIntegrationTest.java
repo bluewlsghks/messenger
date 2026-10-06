@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WorkspaceHttpIntegrationTest {
     static final String DATABASE="messenger_workspace_test_"+UUID.randomUUID().toString().replace("-","");
-    @DynamicPropertySource static void database(DynamicPropertyRegistry registry){registry.add("spring.data.mongodb.uri",()->System.getenv("MONGODB_TEST_URI"));registry.add("spring.data.mongodb.database",()->DATABASE);}
+    @DynamicPropertySource static void database(DynamicPropertyRegistry registry){registry.add("spring.mongodb.uri",()->System.getenv("MONGODB_TEST_URI"));registry.add("spring.mongodb.database",()->DATABASE);}
     @Autowired com.individual.messenger.crypto.CryptoService crypto;
     @Autowired MongoTemplate mongo;
     @Autowired JwtUtil jwt;
@@ -43,6 +43,8 @@ class WorkspaceHttpIntegrationTest {
         var empty=request(alice,"GET","/api/friends",null);assertEquals(200,empty.statusCode(),empty.body());assertEquals(0,json(empty).size());
         assertEquals(204,request(alice,"POST","/api/friends",Map.of("friendId",bob)).statusCode());
         assertEquals(204,request(alice,"POST","/api/friends",Map.of("friendId",bob)).statusCode());
+        assertEquals(0,json(request(alice,"GET","/api/friends",null)).size());
+        assertEquals(204,request(bob,"POST","/api/contacts/requests/"+alice,Map.of("action","ACCEPT")).statusCode());
         var list=json(request(alice,"GET","/api/friends",null));assertEquals(1,list.size());assertEquals("이름-"+bob,list.get(0).get("userName").asText());
         assertEquals(alice,json(request(bob,"GET","/api/friends",null)).get(0).get("userId").asText());
         assertEquals(204,request(alice,"DELETE","/api/friends?friendId="+bob,null).statusCode());assertEquals(0,json(request(bob,"GET","/api/friends",null)).size());

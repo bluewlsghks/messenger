@@ -17,6 +17,7 @@ import java.util.function.Supplier;
 public class VoiceEvents {
     private final Supplier<SimpMessagingTemplate> messaging;
     private final Supplier<SimpUserRegistry> users;
+    @Autowired(required=false) private ObjectProvider<WebPushService> push;
 
     /** Resolve broker infrastructure only when an authenticated call actually uses it. */
     @Autowired
@@ -32,19 +33,27 @@ public class VoiceEvents {
         this.users = () -> users;
     }
 
-    public boolean online(String user) { return users.get().getUser(user) != null; }
+    public boolean online(String user) { return users.get().getUser(user) != null || (push!=null && push.getObject().reachable(user)); }
 
     public record Event(String type, String action, String roomId, VoiceCallDtos.View call,
                         UUID targetClientId, String sdp, VoiceCallDtos.Candidate candidate, String reason) {}
 
     public void send(String recipient, VoiceCallDtos.View call, String action, UUID targetClientId,
                      String sdp, VoiceCallDtos.Candidate candidate, String reason) {
+        if("RING".equals(action) && push!=null)push.getObject().ring(recipient,call);
         var headers = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
         headers.setHeader("chatRecipient", recipient);
         headers.setHeader("chatRoomId", call.roomId());
+        headers.setNativeHeader("chat-room",call.roomId());headers.setNativeHeader("chat-recipient",recipient);
         headers.setLeaveMutable(true);
         messaging.get().convertAndSendToUser(recipient, "/queue/events",
                 new Event("VOICE_CALL", action, call.roomId(), call, targetClientId, sdp, candidate, reason),
                 headers.getMessageHeaders());
+    }
+    public void conference(String recipient,com.individual.messenger.dto.ConferenceDtos.Event event) {
+        var headers=SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+        headers.setHeader("chatRecipient",recipient);headers.setHeader("chatRoomId",event.roomId());
+        headers.setNativeHeader("chat-recipient",recipient);headers.setNativeHeader("chat-room",event.roomId());headers.setLeaveMutable(true);
+        messaging.get().convertAndSendToUser(recipient,"/queue/events",event,headers.getMessageHeaders());
     }
 }

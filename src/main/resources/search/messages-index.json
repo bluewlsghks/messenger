@@ -1,0 +1,14 @@
+{
+  "settings": {
+    "index.max_ngram_diff": 1,
+    "analysis": {
+      "tokenizer": {"chat_ngrams": {"type": "ngram", "min_gram": 2, "max_gram": 3, "token_chars": ["letter", "digit"]}},
+      "analyzer": {"chat_text": {"type": "custom", "tokenizer": "chat_ngrams", "filter": ["lowercase"]}}
+    }
+  },
+  "mappings": {"dynamic": "strict", "properties": {
+    "roomId": {"type": "keyword"}, "senderId": {"type": "keyword"},
+    "content": {"type": "text", "analyzer": "chat_text", "search_analyzer": "chat_text"},
+    "deleted": {"type": "boolean"}, "createdAt": {"type": "date"}
+  }}
+}

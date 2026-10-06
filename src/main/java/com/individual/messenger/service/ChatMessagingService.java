@@ -20,6 +20,10 @@ public class ChatMessagingService {
     private final ChatAccessService access;
     private final OpenAiService ai;
     private final Executor executor;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MessageExtras extras;
+    @org.springframework.beans.factory.annotation.Autowired(required=false) private RequestBudget budget;
+    @org.springframework.beans.factory.annotation.Value("${app.rate-limits.enabled:true}") private boolean rateLimitsEnabled=true;
     private final Semaphore aiSlots = new Semaphore(4);
 
     public ChatMessagingService(MessageService messages, ChatAccessService access, OpenAiService ai,
@@ -30,11 +34,23 @@ public class ChatMessagingService {
         this.executor = executor;
     }
     public Message send(String roomId, String content, Principal principal) {
-        User sender = access.requireMember(roomId, principal);
-        String text = MessageService.validateContent(content);
-        Message saved = messages.save(roomId, sender.loginId, sender.userName, text);
-        if (isAiCommand(text) && text.length() > 3) ask(roomId, text.substring(3).strip(), principal, saved.id);
-        return saved;
+        return send(new com.individual.messenger.dto.MessageRequests.SendRequest(roomId, content, null, null, null), principal);
+    }
+    public Message send(com.individual.messenger.dto.MessageRequests.SendRequest body, Principal principal) {
+        User sender = access.requireWritable(body.roomId(), principal);
+        if(budget!=null && rateLimitsEnabled)budget.consume(sender.loginId,"message-send",120,60);
+        String text = MessageService.validateContent(body.content());
+        Message replay = messages.replay(body.roomId(), sender.loginId, text, body.clientRequestId(),
+                body.replyToId(), body.attachmentIds());
+        if (replay != null) return replay;
+        MessageExtras.Prepared options = extras == null ? new MessageExtras.Prepared(null, java.util.List.of(), java.util.List.of())
+                : extras.prepare(body.roomId(), sender.loginId, text, body.replyToId(), body.attachmentIds());
+        var stored = messages.store(body.roomId(), sender.loginId, sender.userName, text, body.clientRequestId(),
+                body.replyToId(), options.threadId(), options.attachmentIds(), options.mentions());
+        // A transport retry must not incur a second AI request or a second message insertion.
+        if (stored.created() && isAiCommand(text) && text.length() > 3)
+            ask(body.roomId(), text.substring(3).strip(), principal, stored.message().id);
+        return stored.message();
     }
     static boolean isAiCommand(String text) {
         return text != null && (text.equals("/ai") || text.startsWith("/ai ") || text.startsWith("/ai\n"));

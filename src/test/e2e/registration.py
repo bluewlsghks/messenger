@@ -8,7 +8,7 @@ assert urlparse(BASE).hostname in ('localhost', '127.0.0.1'), 'Disposable localh
 
 def run():
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(executable_path=os.environ.get("MESSENGER_CHROMIUM"), )
         page = browser.new_page()
         try:
             identifier = 'signup_' + uuid.uuid4().hex[:12]

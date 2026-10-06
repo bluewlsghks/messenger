@@ -38,6 +38,12 @@ public class AuthService {
         if (loginId.isBlank() || userName.isBlank() || rawPw.isBlank()) {
             throw new IllegalArgumentException("아이디, 표시 이름, 비밀번호는 필수입니다.");
         }
+        if (!loginId.matches("[A-Za-z0-9_-]{3,64}") || "AI_BOT".equalsIgnoreCase(loginId))
+            throw new IllegalArgumentException("아이디는 영문·숫자·_·- 조합의 3~64자여야 합니다.");
+        if (userName.length() > 80 || userName.codePoints().anyMatch(c -> Character.isISOControl(c)
+                || Character.getType(c) == Character.FORMAT)) throw new IllegalArgumentException("표시 이름을 확인해 주세요.");
+        if (rawPw.length() < 8 || rawPw.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
+            throw new IllegalArgumentException("비밀번호는 8자 이상, UTF-8 기준 72바이트 이하여야 합니다.");
         if (userRepo.existsByLoginId(loginId)) {
             throw new DuplicateLoginIdException();
         }
@@ -76,8 +82,7 @@ public class AuthService {
             }
             if ((u.phoneEnc == null || u.phoneEnc.isBlank()) && u.legacyPhoneNumber != null) {
                 u.phoneEnc = crypto.encryptString(u.legacyPhoneNumber);
-                // 필요 시 원문 제거:
-                // u.setLegacyPhoneNumber(null);
+                u.legacyPhoneNumber = null; // Remove plaintext only after successful encryption on this authenticated migration.
             }
             userRepo.save(u);
         }

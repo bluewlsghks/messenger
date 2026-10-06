@@ -1,5 +1,6 @@
 package com.individual.messenger.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -19,6 +20,19 @@ public class Message {
     public Instant editedAt;
     public Instant deletedAt;
     public long version;
+    public String clientRequestId;
+    public String replyToId;
+    public String threadId;
+    public List<String> attachmentIds = new ArrayList<>();
+    public List<String> mentions = new ArrayList<>();
+    @JsonIgnore public String requestFingerprint;
+    // The latest message state and its pending publication are one atomic MongoDB document.
+    @JsonIgnore public boolean publicationPending;
+    @JsonIgnore public boolean creationPublished;
+    @JsonIgnore public Instant publishAfter;
+    @JsonIgnore public Instant publicationLeaseUntil;
+    @JsonIgnore public String publicationLease;
+    @JsonIgnore public int publicationAttempts;
     public List<String> readBy = new ArrayList<>();
     public Message() {}
     public Message(String roomId, String sender, String content) {

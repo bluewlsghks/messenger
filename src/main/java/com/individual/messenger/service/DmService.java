@@ -10,6 +10,7 @@ import java.time.Instant;
 
 @Service
 public class DmService {
+    @org.springframework.beans.factory.annotation.Autowired private MessageService messages;
     private final RoomService rooms;
     private final ReadCursorRepository cursors;
     private final ChatAccessService access;
@@ -19,6 +20,7 @@ public class DmService {
     public Room startDm(String me, String other) { return rooms.createOrGetDirect(me, other); }
     public ReadCursor markRead(String roomId, String loginId) {
         access.requireMember(roomId, () -> loginId);
+        messages.markAllRead(roomId, loginId);
         ReadCursor cursor = cursors.findByRoomIdAndUsername(roomId, loginId).orElse(new ReadCursor(roomId, loginId));
         Instant now = Instant.now();
         if (cursor.lastReadAt == null || now.isAfter(cursor.lastReadAt)) cursor.lastReadAt = now;

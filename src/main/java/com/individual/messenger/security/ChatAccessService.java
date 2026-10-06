@@ -16,6 +16,8 @@ import java.security.Principal;
 /** Shared authorization for REST, STOMP SEND/SUBSCRIBE and outbound deliveries. */
 @Service
 public class ChatAccessService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.individual.messenger.service.ContactService contacts;
     private final RoomRepository rooms;
     private final ChatServerRepository servers;
     private final UserRepository users;
@@ -40,6 +42,21 @@ public class ChatAccessService {
                 new ResponseStatusException(HttpStatus.UNAUTHORIZED, "사용자를 확인할 수 없습니다."));
     }
 
+    public User requireWritable(String roomId, Principal principal) {
+        User user = requireMember(roomId, principal);
+        Room room = rooms.findById(roomId).orElse(null);
+        if (room != null && room.type == com.individual.messenger.domain.RoomType.DIRECT && contacts != null) {
+            for (String peer : room.members) if (!peer.equals(user.loginId) && contacts.blocked(user.loginId, peer))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "차단된 관계에서는 메시지나 통화를 시작할 수 없습니다.");
+        } else if (room == null) {
+            var server = servers.findByChannelsId(roomId).orElseThrow();
+            var channel = server.channels.stream().filter(c -> c.id.equals(roomId)).findFirst().orElseThrow();
+            if (!com.individual.messenger.service.ServerPolicy.write(server, channel, user.loginId))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "이 채널에는 작성 권한이 없습니다.");
+        }
+        return user;
+    }
+
     public User requireMember(String roomId, Principal principal) {
         User user = actor(principal);
         if (roomId == null || roomId.isBlank() || roomId.length() > 100 || roomId.contains("/")) {
@@ -52,7 +69,8 @@ public class ChatAccessService {
             allowed = room.members != null && room.members.contains(user.loginId);
         } else {
             allowed = servers.findByChannelsId(roomId)
-                    .map(server -> server.members != null && server.members.contains(user.loginId)).orElse(false);
+                    .map(server -> server.channels.stream().filter(c -> c.id.equals(roomId))
+                            .anyMatch(c -> com.individual.messenger.service.ServerPolicy.read(server, c, user.loginId))).orElse(false);
         }
         if (!allowed) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "채팅방에 접근할 권한이 없습니다.");
         return user;

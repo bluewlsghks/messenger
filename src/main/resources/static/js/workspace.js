@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(document.body.dataset.page!=='workspace'||!Auth.requireLogin())return;
   const $=id=>document.getElementById(id);const {el,button,avatar,icon}=UI;
   let servers=[],rooms=[],friends=[],selectedServer=null,selectedRoom=null,view='friends',loadSerial=0,friendError=null,searchSerial=0;
-  const realtime=new Realtime();const voice=new VoiceCalls(realtime,person);const notices=new NotificationCenter(realtime,event=>openNotice(event));const chat=new ChatPanel(realtime,notices);
+  const realtime=new Realtime();window.messengerRealtime=realtime;const voice=new VoiceCalls(realtime,person);const notices=new NotificationCenter(realtime,event=>openNotice(event));const chat=new ChatPanel(realtime,notices);
   function error(message){$('workspace-error').replaceChildren();$('workspace-error').hidden=!message;if(message){$('workspace-error').append(document.createTextNode(message),button('다시 시도',()=>reload(),'text-button'));}}
   const count=id=>Number(notices.counts[id]||0);
   function badge(n){const b=el('span','badge',n>99?'99+':String(n));b.hidden=!n;return b;}
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   function renderFriends(){
     const list=$('friend-list');list.replaceChildren();$('friend-count').textContent=String(friends.length);if(friendError){list.append(UI.empty('친구 목록을 불러오지 못했어요',friendError,button('다시 시도',()=>loadFriends())));return;}
     const query=$('friend-search').value.trim().toLocaleLowerCase();const shown=friends.filter(f=>`${f.userName} ${f.userId}`.toLocaleLowerCase().includes(query));
-    for(const friend of shown){const row=el('div','friend-row');const info=el('div','friend-info');info.append(el('strong','',friend.userName||friend.userId),el('small','',`@${friend.userId}`));const actions=el('div','friend-actions');actions.append(button(`${friend.userName||friend.userId}님에게 메시지`,()=>startDm(friend.userId),'icon-button','chat'),button(`${friend.userName||friend.userId}님 친구 삭제`,()=>removeFriend(friend),'icon-button','trash'));row.append(avatar(friend.userName||friend.userId),info,actions);list.append(row);}
+    for(const friend of shown){const row=el('div','friend-row');row.dataset.userId=friend.userId;const info=el('div','friend-info');info.append(el('strong','',friend.userName||friend.userId),el('small','',`@${friend.userId}`));const actions=el('div','friend-actions');actions.append(button(`${friend.userName||friend.userId}님에게 메시지`,()=>startDm(friend.userId),'icon-button','chat'),button(`${friend.userName||friend.userId}님 친구 삭제`,()=>removeFriend(friend),'icon-button','trash'));row.append(avatar(friend.userName||friend.userId),info,actions);list.append(row);}
     if(!shown.length)list.append(UI.empty(query?'검색 결과가 없어요':'아직 등록된 친구가 없어요',query?'다른 이름이나 아이디로 검색해 보세요.':'아이디로 친구를 추가하고 첫 대화를 시작해 보세요.',query?null:button('친구 추가',addFriend,'primary','plus')));
   }
   async function loadFriends(){try{friends=await Auth.request('/api/friends');friendError=null;}catch(e){friendError=e.message;}renderFriends();renderNavigation();}
@@ -41,14 +41,14 @@ document.addEventListener('DOMContentLoaded',async()=>{
       else{const server=servers.find(s=>s.channels.some(c=>c.id===id));if(server){selectedServer=server.id;selectedRoom=id;view='chat';title=server.channels.find(c=>c.id===id).name;subtitle=server.name;members=server.members;}else error('대화를 찾을 수 없습니다. 목록을 새로고침하거나 참여 권한을 확인해 주세요.');}
     }
     $('friends-view').hidden=view!=='friends';$('chat-view').hidden=view!=='chat';$('chat-title').textContent=title;$('view-subtitle').textContent=subtitle;$('view-icon').replaceChildren(icon(view==='friends'?'users':selectedServer?'hash':'chat'));document.querySelectorAll('.chat-action').forEach(b=>b.hidden=view!=='chat');$('members-panel').hidden=true;$('toggle-members').setAttribute('aria-expanded','false');$('search-panel').hidden=true;
-    if(view==='chat'){chat.open(selectedRoom,title);$('members-heading').textContent=`참여자 — ${members.length}`;$('member-list').replaceChildren();const owner=servers.find(s=>s.id===selectedServer)?.ownerId;for(const id of members){const row=el('div','member-row');const text=el('div');text.append(el('strong','',person(id)),el('small','',id===owner?'서버 소유자':id===Auth.getLoginId()?'나':'멤버'));row.append(avatar(person(id),id===Auth.getLoginId()),text);$('member-list').append(row);}renderMute();}
+    if(view==='chat'){chat.open(selectedRoom,title);$('members-heading').textContent=`참여자 — ${members.length}`;$('member-list').replaceChildren();const owner=servers.find(s=>s.id===selectedServer)?.ownerId;for(const id of members){const row=el('div','member-row');row.dataset.userId=id;const text=el('div');text.append(el('strong','',person(id)),el('small','',id===owner?'서버 소유자':id===Auth.getLoginId()?'나':'멤버'));row.append(avatar(person(id),id===Auth.getLoginId()),text);$('member-list').append(row);}renderMute();}
     else{chat.close();if(location.pathname==='/servers'&&!servers.length)UI.toast('첫 서버를 만들어 보세요.','왼쪽 + 버튼으로 서버를 만들거나 초대 코드로 참여할 수 있어요.');}
     voice.setRoom(!selectedServer ? rooms.find(room=>room.id===selectedRoom) : null);
-    renderNavigation();
+    renderNavigation();document.dispatchEvent(new CustomEvent('messenger:context',{detail:{roomId:selectedRoom,serverId:selectedServer,room:rooms.find(r=>r.id===selectedRoom),server:servers.find(s=>s.id===selectedServer)}}));
   }
   async function openNotice(event){if(!rooms.some(r=>r.id===event.roomId)&&!servers.some(s=>s.channels.some(c=>c.id===event.roomId)))await reload();navigate(event.serverId?`/servers?server=${encodeURIComponent(event.serverId)}&channel=${encodeURIComponent(event.roomId)}`:`/chat/${encodeURIComponent(event.roomId)}`);}
   function renderMute(){const muted=notices.muted(selectedRoom);$('mute-room').replaceChildren(icon(muted?'mute':'bell'));$('mute-room').setAttribute('aria-pressed',String(muted));$('mute-room').setAttribute('aria-label',muted?'이 대화 알림 켜기':'이 대화 알림 끄기');$('mute-room').title=muted?'이 대화 알림 켜기':'이 대화 알림 끄기';}
-  function addFriend(){UI.form({title:'친구 추가',description:'친구의 정확한 아이디를 입력하세요. 현재 버전은 추가 시 서로의 친구 목록에 등록됩니다.',fields:[{name:'friendId',label:'친구 아이디',placeholder:'예: jinhwan',maxLength:100}],submitText:'친구 추가',onSubmit:async values=>{await Auth.request('/api/friends',{method:'POST',body:JSON.stringify(values)});await loadFriends();UI.toast('친구를 추가했어요','이제 친구 목록에서 메시지를 보낼 수 있습니다.');}});}
+  function addFriend(){UI.form({title:'친구 추가',description:'친구의 정확한 아이디를 입력하세요. 상대방이 요청을 수락하면 서로의 친구 목록에 등록됩니다.',fields:[{name:'friendId',label:'친구 아이디',placeholder:'예: jinhwan',maxLength:100}],submitText:'친구 추가',onSubmit:async values=>{await Auth.request('/api/friends',{method:'POST',body:JSON.stringify(values)});await loadFriends();UI.toast('친구 요청을 보냈어요','상대방이 친구 요청 화면에서 수락하면 친구로 등록됩니다.');}});}
   function removeFriend(friend){UI.form({title:'친구를 삭제할까요?',description:`${friend.userName||friend.userId}님과 서로의 친구 목록에서 삭제됩니다. 기존 대화 내역은 유지됩니다.`,submitText:'친구 삭제',danger:true,onSubmit:async()=>{await Auth.request(`/api/friends?friendId=${encodeURIComponent(friend.userId)}`,{method:'DELETE'});await loadFriends();}});}
   async function startDm(peerId){try{const room=await Auth.request('/api/rooms/dm',{method:'POST',body:JSON.stringify({peerId})});if(!rooms.some(r=>r.id===room.id))rooms.unshift(room);navigate(`/chat/${encodeURIComponent(room.id)}`);}catch(e){UI.toast('대화를 시작하지 못했어요',e.message);}}
   function newDm(){UI.form({title:'새 메시지',description:'대화할 사람의 아이디를 입력하세요.',fields:[{name:'peerId',label:'사용자 아이디',maxLength:100}],submitText:'대화 시작',onSubmit:async values=>{const room=await Auth.request('/api/rooms/dm',{method:'POST',body:JSON.stringify(values)});if(!rooms.some(r=>r.id===room.id))rooms.unshift(room);navigate(`/chat/${encodeURIComponent(room.id)}`);}});}
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
       $('members-heading').textContent=`참여자 — ${members.length}`;
       $('member-list').replaceChildren();
       for(const id of members){
-        const row=el('div','member-row'),text=el('div');
+        const row=el('div','member-row'),text=el('div');row.dataset.userId=id;
         text.append(el('strong','',person(id)),el('small','',id===owner?'서버 소유자':id===Auth.getLoginId()?'나':'멤버'));
         row.append(avatar(person(id),id===Auth.getLoginId()),text);$('member-list').append(row);
       }
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const extra=el('div');extra.append(el('div','settings-section','NOTIFICATIONS'));
     function toggle(label,key,onChange){const row=el('label','setting-row',label);const input=el('input');input.type='checkbox';input.checked=!!notices.prefs[key];input.onchange=()=>{notices.prefs[key]=input.checked;notices.save();onChange?.(input.checked);};row.append(input);extra.append(row);}
     toggle('앱 안 팝업 알림','inApp');toggle('알림 내용 미리보기','preview');toggle('알림음','sound',enabled=>{if(enabled)notices.enableSound();});
-    const desktop=button(notices.prefs.desktop?'데스크톱 알림 끄기':'데스크톱 알림 허용',async()=>{if(notices.prefs.desktop){notices.prefs.desktop=false;notices.save();}else await notices.enableDesktop();desktop.textContent=notices.prefs.desktop?'데스크톱 알림 끄기':'데스크톱 알림 허용';},'secondary','bell');extra.append(desktop,el('p','settings-help','데스크톱 알림은 브라우저 권한과 HTTPS(또는 localhost)가 필요합니다. 탭을 닫은 상태의 푸시는 제공하지 않습니다. 소리는 브라우저가 허용한 뒤 재생되며, 다른 탭에서는 다시 켜야 할 수 있습니다.'),el('p','settings-help','알림 설정은 즉시 저장됩니다. 미리보기는 기본적으로 꺼져 있습니다. 대화 상단의 종 아이콘으로 해당 대화만 알림을 끌 수 있습니다.'),button('로그아웃',Auth.logout,'secondary','logout'));
+    const desktop=button(notices.prefs.desktop?'데스크톱 알림 끄기':'데스크톱 알림 허용',async()=>{if(notices.prefs.desktop){notices.prefs.desktop=false;notices.save();}else await notices.enableDesktop();desktop.textContent=notices.prefs.desktop?'데스크톱 알림 끄기':'데스크톱 알림 허용';},'secondary','bell');extra.append(desktop,el('p','settings-help','데스크톱 알림은 브라우저 권한과 HTTPS(또는 localhost)가 필요합니다. 탭을 닫은 상태의 알림은 별도의 백그라운드 푸시 버튼에서 허용합니다. 소리는 브라우저가 허용한 뒤 재생되며, 다른 탭에서는 다시 켜야 할 수 있습니다.'),el('p','settings-help','알림 설정은 즉시 저장됩니다. 미리보기는 기본적으로 꺼져 있습니다. 대화 상단의 종 아이콘으로 해당 대화만 알림을 끌 수 있습니다.'),button('로그아웃',Auth.logout,'secondary','logout'));
     dialog.form.insertBefore(extra,dialog.form.querySelector('.dialog-error'));
   }
   $('home-button').onclick=()=>navigate('/home');$('friends-nav').onclick=()=>navigate('/friends');$('create-server').onclick=newServer;$('welcome-server').onclick=newServer;$('join-server').onclick=joinServer;$('add-conversation').onclick=()=>selectedServer?newChannel():newDm();$('welcome-dm').onclick=newDm;$('add-friend').onclick=addFriend;$('create-group').onclick=newGroup;$('invite-members').onclick=invite;$('refresh-server').onclick=reload;$('friend-search').oninput=renderFriends;$('navigation-search').oninput=renderNavigation;
@@ -102,5 +102,6 @@ document.addEventListener('DOMContentLoaded',async()=>{
   realtime.addEventListener('state',event=>{$('connection-state').textContent=event.detail.label;$('connection-state').classList.toggle('connected',event.detail.ready);});
   let reloadTimer;realtime.addEventListener('notice',event=>{if(!rooms.some(r=>r.id===event.detail.roomId)&&!servers.some(s=>s.channels.some(c=>c.id===event.detail.roomId))){clearTimeout(reloadTimer);reloadTimer=setTimeout(reload,300);}});
   notices.addEventListener('counts',renderNavigation);
-  try{const me=await Auth.request('/api/users/me');Auth.setAuth(me);$('my-name').textContent=me.userName;$('my-avatar').textContent=Array.from(me.userName||me.id)[0];await reload();realtime.start();}catch(e){error(e.message);}
+  try{const me=await Auth.request('/api/users/me');Auth.setAuth(me);$('my-name').textContent=me.userName;$('my-avatar').textContent=Array.from(me.userName||me.id)[0];window.WorkspaceActions={reload,navigate,chat,context:()=>({roomId:selectedRoom,serverId:selectedServer,room:rooms.find(r=>r.id===selectedRoom),server:servers.find(s=>s.id===selectedServer)})};
+  await reload();realtime.start();}catch(e){error(e.message);}
 });

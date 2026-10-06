@@ -25,6 +25,8 @@ public class NotificationService {
         rooms.findByMembersContaining(me).forEach(room -> ids.add(room.id));
         servers.findByMembersContainingOrderByCreatedAtAsc(me)
                 .forEach(server -> server.channels.forEach(channel -> ids.add(channel.id)));
+        ids.removeIf(id -> { try { access.requireMember(id, principal); return false; }
+            catch (org.springframework.web.server.ResponseStatusException denied) { return true; } });
         return unread.count(ids, me);
     }
 }

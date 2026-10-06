@@ -1,3 +1,5 @@
+> **2026-10-06 후속 변경:** 이 문서는 초기 구현/검증 기록도 포함합니다. 현재 공유 통화 상태·최대 4명 미디어·독립 터널 guardian·Boot 4 설정은 [로드맵 구현](ROADMAP_IMPLEMENTATION.md)과 [운영 안내](OPERATIONS.md)를 우선 참조하세요.
+
 # 1:1 음성통화
 
 2026-10-06 추가. 기존 Thymeleaf/Vanilla JavaScript 작업 화면, JWT, DM, STOMP 개인 이벤트를 재사용합니다. 이 문서는 구현 범위와 실행 조건을 설명하며 TURN 호스팅·유료 서비스 구매·운영 배포 완료를 뜻하지 않습니다.

@@ -40,7 +40,8 @@ public class ChatServerService {
     }
 
     public List<ChatServer> list(String loginId) {
-        return servers.findByMembersContainingOrderByCreatedAtAsc(loginId);
+        return servers.findByMembersContainingOrderByCreatedAtAsc(loginId).stream()
+                .filter(s -> ServerPolicy.member(s, loginId)).map(s -> visible(s, loginId)).toList();
     }
 
     public ChatServer create(String loginId, String name) {
@@ -55,7 +56,7 @@ public class ChatServerService {
 
     public ChatServer requireMember(String serverId, String loginId) {
         ChatServer server = servers.findById(serverId).orElseThrow(ChatServerService::forbidden);
-        if (server.members == null || !server.members.contains(loginId)) throw forbidden();
+        if (!ServerPolicy.member(server, loginId)) throw forbidden();
         return server;
     }
 
@@ -74,7 +75,7 @@ public class ChatServerService {
         ChatServer.TextChannel channel = new ChatServer.TextChannel(name);
         Query query = Query.query(Criteria.where("id").is(serverId).and("ownerId").is(loginId)
                 .and("channels.name").ne(name).and("channels." + (MAX_CHANNELS - 1)).exists(false));
-        ChatServer updated = mongo.findAndModify(query, new Update().push("channels", channel),
+        ChatServer updated = mongo.findAndModify(query, new Update().push("channels", channel).inc("revision", 1),
                 FindAndModifyOptions.options().returnNew(true), ChatServer.class);
         if (updated == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "채널 이름이 중복되거나 채널 수 제한에 도달했습니다.");
@@ -83,13 +84,13 @@ public class ChatServerService {
     }
 
     public IssuedInvite issueInvite(String serverId, String loginId) {
-        requireOwner(serverId, loginId);
+        ChatServer server = requireOwner(serverId, loginId);
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         String code = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         ServerInvite invite = new ServerInvite();
         invite.id = digest(code);
-        invite.serverId = serverId;
+        invite.serverId = serverId; invite.inviteVersion = server.inviteVersion;
         invite.createdBy = loginId;
         invite.expiresAt = Instant.now().plus(Duration.ofDays(7));
         invites.insert(invite);
@@ -104,13 +105,21 @@ public class ChatServerService {
         if (invite.expiresAt == null || !invite.expiresAt.isAfter(Instant.now())) throw invalidInvite();
         Criteria capacity = new Criteria().orOperator(Criteria.where("members").is(loginId),
                 Criteria.where("members." + (MAX_MEMBERS - 1)).exists(false));
-        Query query = Query.query(new Criteria().andOperator(Criteria.where("id").is(invite.serverId), capacity));
-        ChatServer joined = mongo.findAndModify(query, new Update().addToSet("members", loginId),
+        Criteria inviteEpoch = invite.inviteVersion == 0 ? new Criteria().orOperator(Criteria.where("inviteVersion").is(0),
+                Criteria.where("inviteVersion").exists(false)) : Criteria.where("inviteVersion").is(invite.inviteVersion);
+        Query query = Query.query(new Criteria().andOperator(Criteria.where("id").is(invite.serverId)
+                .and("deleted").ne(true).and("banned").ne(loginId), capacity, inviteEpoch));
+        ChatServer joined = mongo.findAndModify(query, new Update().addToSet("members", loginId).inc("revision", 1),
                 FindAndModifyOptions.options().returnNew(true), ChatServer.class);
         if (joined == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "서버가 없거나 참여 인원 제한에 도달했습니다.");
         }
-        return joined;
+        return visible(joined, loginId);
+    }
+
+    public ChatServer visible(ChatServer server, String loginId) {
+        server.channels = server.channels.stream().filter(c -> ServerPolicy.read(server, c, loginId)).toList();
+        return server;
     }
 
     static String cleanName(String input, int maxLength) {

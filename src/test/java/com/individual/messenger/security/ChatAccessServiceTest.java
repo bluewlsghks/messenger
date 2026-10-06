@@ -49,11 +49,13 @@ class ChatAccessServiceTest {
     }
     @Test void permitsServerMemberInChannel() {
         ChatServer server = new ChatServer(); server.members.add("alice");
+        ChatServer.TextChannel channel = new ChatServer.TextChannel("일반"); channel.id = "channel"; server.channels.add(channel);
         when(servers.findByChannelsId("channel")).thenReturn(Optional.of(server));
         assertSame(user, access.requireMember("channel", alice));
     }
     @Test void membershipIsRecheckedNotCached() {
         ChatServer server = new ChatServer(); server.members.add("alice");
+        ChatServer.TextChannel channel = new ChatServer.TextChannel("일반"); channel.id = "channel"; server.channels.add(channel);
         when(servers.findByChannelsId("channel")).thenReturn(Optional.of(server));
         access.requireMember("channel", alice); server.members.clear();
         assertThrows(ResponseStatusException.class, () -> access.requireMember("channel", alice));

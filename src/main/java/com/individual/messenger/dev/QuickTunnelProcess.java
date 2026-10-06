@@ -29,6 +29,7 @@ public final class QuickTunnelProcess implements AutoCloseable {
     private final Thread shutdownHook;
     private String origin;
     private Thread outputThread;
+    private Process guardian;
 
     private QuickTunnelProcess(Process process, Path runDirectory) {
         this.process = process;
@@ -69,6 +70,8 @@ public final class QuickTunnelProcess implements AutoCloseable {
         System.out.println("[Public tunnel] Local logs: " + directory.resolve("tunnel.log"));
         Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
         QuickTunnelProcess tunnel = new QuickTunnelProcess(process, directory);
+        try { tunnel.startGuardian(); }
+        catch(IOException | InterruptedException | RuntimeException failure) {tunnel.close();throw failure;}
         CompletableFuture<String> issued = new CompletableFuture<>();
         Thread reader = new Thread(() -> {
             try (var input = process.inputReader(StandardCharsets.UTF_8);
@@ -147,6 +150,28 @@ public final class QuickTunnelProcess implements AutoCloseable {
         return configured;
     }
 
+    private void startGuardian() throws IOException,InterruptedException {
+        String relative=TunnelGuardian.class.getName().replace('.', '/')+".class";
+        Path classes=runDirectory.resolve("guardian"),target=classes.resolve(relative);
+        Files.createDirectories(target.getParent());
+        try(var input=TunnelGuardian.class.getResourceAsStream("/"+relative)) {
+            if(input==null)throw new IOException("Tunnel guardian class is unavailable");
+            Files.copy(input,target);
+        }
+        var parent=ProcessHandle.current();
+        var parentStart=parent.info().startInstant().orElseThrow(()->new IOException("Parent start time unavailable"));
+        var childStart=process.info().startInstant().orElseThrow(()->new IOException("Tunnel start time unavailable"));
+        String executable=Path.of(System.getProperty("java.home"),"bin",System.getProperty("os.name").startsWith("Windows")?"java.exe":"java").toString();
+        Path ready=runDirectory.resolve("guardian.ready");
+        guardian=new ProcessBuilder(executable,"-cp",classes.toString(),TunnelGuardian.class.getName(),
+                Long.toString(parent.pid()),parentStart.toString(),Long.toString(process.pid()),childStart.toString(),
+                runDirectory.resolve("url.txt").toString(),ready.toString())
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(runDirectory.resolve("guardian.log").toFile()).start();
+        long deadline=System.nanoTime()+5_000_000_000L;
+        while(!Files.exists(ready) && guardian.isAlive() && System.nanoTime()<deadline)Thread.sleep(20);
+        if(!Files.exists(ready))throw new IOException("Tunnel guardian could not start. See guardian.log");
+    }
+
     public String origin() { return origin; }
     public boolean isAlive() { return process.isAlive(); }
     Path runDirectory() { return runDirectory; }
@@ -166,6 +191,7 @@ public final class QuickTunnelProcess implements AutoCloseable {
                 process.waitFor(3, TimeUnit.SECONDS);
             }
             if (outputThread != null && Thread.currentThread() != outputThread) outputThread.join(1000);
+            if(guardian!=null && !guardian.waitFor(2,TimeUnit.SECONDS))guardian.destroy();
         } catch (InterruptedException interrupted) {
             process.destroyForcibly();
             Thread.currentThread().interrupt();

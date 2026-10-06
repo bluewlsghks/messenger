@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light"><title>Messenger</title>
-  <link rel="icon" href="data:,"><link rel="stylesheet" href="/css/workspace.css"><link rel="stylesheet" href="/css/voice-call.css">
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="/css/workspace.css"><link rel="stylesheet" href="/css/voice-call.css"><link rel="stylesheet" href="/css/roadmap.css">
   <script src="/js/ui.js" defer></script><script src="/js/auth.js" defer></script>
   <script src="/webjars/sockjs-client/1.6.1/dist/sockjs.min.js" defer></script>
   <script src="/webjars/stomp__stompjs/7.3.0/bundles/stomp.umd.min.js" defer></script>
   <script src="/js/realtime.js" defer></script><script src="/js/notifications.js" defer></script>
-  <script src="/js/conversation.js" defer></script><script src="/js/voice-call.js" defer></script><script src="/js/workspace.js" defer></script>
+  <script src="/js/message-window.js" defer></script>
+<script src="/js/conversation.js" defer></script><script src="/js/media-preferences.js" defer></script><script src="/js/voice-call.js" defer></script><script src="/js/workspace.js" defer></script>
+<script src="/js/community.js" defer></script><script src="/js/attachments.js" defer></script><script src="/js/web-push.js" defer></script><script src="/js/conference.js" defer></script>
 </head>
 <body data-page="workspace">
 <a class="skip-link" href="#main-content">본문으로 이동</a>
@@ -50,7 +52,7 @@
     </section>
     <aside id="search-panel" class="search-panel" aria-label="메시지 검색 결과" hidden><div class="panel-heading"><h3>대화 검색</h3><button id="close-search" class="icon-button" data-icon="x" aria-label="검색 닫기"></button></div><form id="search-form" class="search-form"><input id="search-query" maxlength="100" aria-label="메시지 검색어" placeholder="이 대화에서 검색"><button class="primary" type="submit">검색</button></form><p class="muted padding">최근 검색 결과 최대 50개를 표시합니다.</p><div id="search-results"></div></aside>
   </main>
-  <aside id="members-panel" class="members-panel" hidden><div class="panel-heading"><h3 id="members-heading">참여자</h3><button id="close-members" class="icon-button" data-icon="x" aria-label="참여자 닫기"></button></div><div id="member-list"></div><p class="footnote">서버 멤버 목록입니다.<br>접속 상태 표시는 아직 제공하지 않습니다.</p></aside>
+  <aside id="members-panel" class="members-panel" hidden><div class="panel-heading"><h3 id="members-heading">참여자</h3><button id="close-members" class="icon-button" data-icon="x" aria-label="참여자 닫기"></button></div><div id="member-list"></div><p class="footnote">서버 멤버 목록입니다.<br>온라인 표시는 최근 75초의 활동을 기준으로 합니다.</p></aside>
 </div>
 <button id="sidebar-backdrop" class="sidebar-backdrop" aria-label="대화 목록 닫기" hidden></button>
 <aside id="notification-panel" class="notification-panel" hidden aria-label="알림 센터"><div class="panel-heading"><div><span class="eyebrow">INBOX</span><h3>알림 센터</h3></div><button id="close-notifications" class="icon-button" data-icon="x" aria-label="알림 센터 닫기"></button></div><div class="notice-toolbar"><span>이번 접속의 새 메시지</span><button id="clear-notifications" class="text-button">기록 비우기</button></div><div id="notification-list" class="notification-list"></div><div class="notification-footer"><button id="enable-desktop" class="secondary">데스크톱 알림 설정</button><p>브라우저 탭을 열어 둔 동안 알림을 받습니다.</p></div></aside>

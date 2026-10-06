@@ -31,11 +31,11 @@ public class ServerController {
     }
     @GetMapping("/{serverId}")
     public ChatServer get(Principal actor, @PathVariable String serverId) {
-        return service.requireMember(serverId, access.actor(actor).loginId);
+        return service.visible(service.requireMember(serverId, access.actor(actor).loginId), actor.getName());
     }
     @GetMapping("/{serverId}/channels")
     public List<ChatServer.TextChannel> channels(Principal actor, @PathVariable String serverId) {
-        return service.requireMember(serverId, access.actor(actor).loginId).channels;
+        return service.visible(service.requireMember(serverId, access.actor(actor).loginId), actor.getName()).channels;
     }
     @PostMapping("/{serverId}/channels")
     @ResponseStatus(HttpStatus.CREATED)

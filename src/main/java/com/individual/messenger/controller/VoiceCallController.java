@@ -43,4 +43,11 @@ public class VoiceCallController {
     public void command(@PathVariable UUID id, @Valid @RequestBody Command body, Principal principal) {
         calls.command(principal, id, body);
     }
+    @GetMapping("/current")
+    public ResponseEntity<?> current(Principal principal) {
+        var value=calls.current(principal);
+        return value==null?ResponseEntity.noContent().build():ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(value);
+    }
+    @GetMapping("/history")
+    public java.util.List<org.bson.Document> history(Principal principal) {return calls.history(principal);}
 }

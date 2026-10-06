@@ -28,7 +28,19 @@ public class MessageController {
     }
     @PostMapping
     public Message post(Principal actor, @Valid @RequestBody SendRequest body) {
-        return chat.send(body.roomId(), body.content(), actor);
+        return chat.send(body, actor);
+    }
+    @GetMapping("/{roomId}/sync")
+    public List<Message> sync(Principal actor, @PathVariable String roomId,
+                             @RequestParam(required = false) String afterId,
+                             @RequestParam(defaultValue = "100") int limit) {
+        access.requireMember(roomId, actor); return messages.sync(roomId, afterId, limit);
+    }
+    @GetMapping("/{roomId}/threads/{rootId}")
+    public List<Message> thread(Principal actor, @PathVariable String roomId, @PathVariable String rootId,
+                               @RequestParam(required = false) String afterId,
+                               @RequestParam(defaultValue = "100") int limit) {
+        access.requireMember(roomId, actor); return messages.thread(roomId, rootId, afterId, limit);
     }
     @GetMapping
     public Map<String, Object> list(Principal actor, @RequestParam String roomId,

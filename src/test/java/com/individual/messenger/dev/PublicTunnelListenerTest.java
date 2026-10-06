@@ -1,7 +1,7 @@
 package com.individual.messenger.dev;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.DefaultBootstrapContext;
+import org.springframework.boot.bootstrap.DefaultBootstrapContext;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.context.event.ContextClosedEvent;

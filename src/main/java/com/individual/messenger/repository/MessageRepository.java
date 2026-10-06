@@ -10,6 +10,8 @@ import java.time.Instant;
 import java.util.List;
 
 public interface MessageRepository extends MongoRepository<Message, String> {
+    java.util.Optional<Message> findBySenderIdAndClientRequestId(String senderId, String clientRequestId);
+
     Page<Message> findByRoomId(String roomId, Pageable pageable);
 
     // 최신 히스토리 페이징 조회 (무한 스크롤: before 기준)

@@ -26,7 +26,7 @@ public class UserService {
         User user = access.actor(principal);
         if (requestedName == null) throw new IllegalArgumentException("표시 이름을 확인해 주세요.");
         String name = requestedName.strip();
-        if (name.isBlank() || name.length() > 40 || name.chars().anyMatch(Character::isISOControl))
+        if (name.isBlank() || name.length() > 40 || name.codePoints().anyMatch(c -> Character.isISOControl(c) || Character.getType(c)==Character.FORMAT))
             throw new IllegalArgumentException("표시 이름을 확인해 주세요.");
         profiles.rename(user.mongoId, name);
         return new Profile(user.loginId, name, null, user.createdAt);

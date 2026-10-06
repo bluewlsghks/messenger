@@ -29,7 +29,7 @@ def passed(name):
     print('PASS:', name, flush=True)
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = p.chromium.launch(executable_path=os.environ.get("MESSENGER_CHROMIUM"), )
     contexts = []
     errors = []
     def account(short, display):
@@ -74,6 +74,8 @@ with sync_playwright() as p:
     a.locator('#app-dialog input[name=friendId]').fill(bid)
     a.locator('#app-dialog button[type=submit]').click()
     expect(a.locator('#app-dialog')).not_to_be_visible()
+    assert api(bc, bt, 'POST', '/api/contacts/requests/' + aid, {'action': 'ACCEPT'}, expected=204) is None
+    a.reload(); expect(a.locator('#connection-state')).to_have_text('연결됨', timeout=30000)
     expect(a.locator('.friend-row')).to_have_count(1)
     expect(a.locator('.friend-row')).to_contain_text('민준')
     b.reload(); expect(b.locator('#connection-state')).to_have_text('연결됨', timeout=30000)
@@ -194,8 +196,9 @@ with sync_playwright() as p:
     a.locator('#close-members').click()
     a.locator('#home-button').click()
     for short, display in [('friend1', '서연'), ('friend2', '윤서')]:
-        _, identifier, _ = account(short, display)
+        fc, identifier, ft = account(short, display)
         api(ac, at, 'POST', '/api/friends', {'friendId': identifier}, expected=204)
+        api(fc, ft, 'POST', '/api/contacts/requests/' + aid, {'action': 'ACCEPT'}, expected=204)
     a.reload(); expect(a.locator('#connection-state')).to_have_text('연결됨', timeout=30000)
     expect(a.locator('.friend-row')).to_have_count(3)
     a.screenshot(path=str(OUT / 'workspace-desktop.png'), full_page=True)

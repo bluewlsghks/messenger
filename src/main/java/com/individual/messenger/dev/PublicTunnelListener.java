@@ -73,6 +73,7 @@ public final class PublicTunnelListener implements ApplicationListener<Applicati
                     "app.allowed-origins", tunnel.origin() + ",http://localhost:" + port + ",http://127.0.0.1:" + port,
                     "server.address", "127.0.0.1",
                     "server.forward-headers-strategy", "none",
+                    "app.auth.secure-cookie", "true",
                     "app.openai.enabled", "false")));
             System.out.println("[Public tunnel] URL ISSUED (app is still starting): " + tunnel.origin());
         } catch (InterruptedException interrupted) {

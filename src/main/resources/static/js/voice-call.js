@@ -33,6 +33,7 @@
 
   class VoiceCalls {
     constructor(realtime, nameOf = id => id) {
+      window.messengerVoice=this;
       this.realtime = realtime; this.nameOf = nameOf; this.user = Auth.getLoginId();
       this.clientId = uuid(); this.current = null; this.room = null;
       this.$ = id => document.getElementById(id);
@@ -46,7 +47,13 @@
       this.$('voice-volume').oninput = event => { this.audio.volume = Number(event.target.value); };
       realtime.addEventListener('voice', event => this.receive(event.detail));
       realtime.addEventListener('state', event => {
-        if (!event.detail.ready && this.current) this.hangup('실시간 연결이 끊겨 통화를 종료했습니다. 연결 후 다시 걸어 주세요.');
+        if (!event.detail.ready && this.current) {
+          const session=this.current;clearTimeout(session.signalingTimer);
+          session.signalingTimer=setTimeout(()=>{if(this.live(session))this.hangup('실시간 연결을 복구하지 못해 통화를 종료했습니다.');},30000);
+        } else if(event.detail.ready) {
+          if(this.current)clearTimeout(this.current.signalingTimer);
+          this.resynchronize().catch(()=>{});
+        }
         this.render();
       });
       window.addEventListener('pagehide', () => this.hangup());
@@ -71,7 +78,7 @@
       this.render(); return session;
     }
     async start() {
-      if (this.current || !this.room || !this.realtime.ready) return;
+      if (this.current || globalThis.messengerConference?.current || !this.room || !this.realtime.ready) return;
       try { this.supported(); } catch (error) { UI.toast('음성통화', error.message); return; }
       const room = this.room;
       const session = this.session({id: uuid(), roomId: room.id, callerId: this.user,
@@ -101,7 +108,7 @@
       } catch (error) { this.fail(session, error); }
     }
     async prepare(session) {
-      session.stream = await acquireAudio(constraints => navigator.mediaDevices.getUserMedia(constraints), () => this.live(session));
+      session.stream = await acquireAudio(constraints => navigator.mediaDevices.getUserMedia({...constraints,audio:{...constraints.audio,...(globalThis.MediaPreferences?.microphone?{deviceId:{exact:MediaPreferences.microphone}}:{})}}), () => this.live(session));
       if (!this.live(session)) return;
       const config = await Auth.request('/api/voice/config');
       if (!this.live(session)) return;
@@ -129,11 +136,11 @@
             if (this.live(session)) this.$('voice-duration').textContent = duration((Date.now() - session.startedAt) / 1000);
           }, 1000);
           this.render();
-        } else if (pc.connectionState === 'failed') this.fail(session, new Error('음성 연결에 실패했습니다. 다른 네트워크에서는 TURN 서버가 필요할 수 있습니다.'));
+        } else if (pc.connectionState === 'failed') this.restart(session).catch(error=>this.fail(session,error));
         else if (pc.connectionState === 'disconnected') {
           session.phase = 'reconnecting'; this.render();
           clearTimeout(session.disconnectTimer);
-          session.disconnectTimer = setTimeout(() => this.fail(session, new Error(REASONS.CONNECTION_LOST)), 10_000);
+          session.disconnectTimer = setTimeout(() => this.restart(session).catch(error=>this.fail(session,error)), 5000);
         }
       };
     }
@@ -148,6 +155,7 @@
         if (session?.view.id === view.id) return;
         if (session) { this.teardown({view}); return; }
         session = this.session(view, false);
+        globalThis.MediaPreferences?.ring?.();
         UI.toast('음성통화 수신', `${this.nameOf(view.callerId)}님이 통화를 요청했습니다.`);
         return;
       }
@@ -159,6 +167,7 @@
       session.view = view;
       if (event.action === 'ACCEPTED') {
         if (session.accepted) return;
+        globalThis.MediaPreferences?.stopRing?.();
         session.accepted = true; session.registered = true; session.phase = 'connecting';
         clearTimeout(session.ringTimer);
         session.connectTimer = setTimeout(() => this.fail(session, new Error('음성 연결 시간이 초과되었습니다. 네트워크와 TURN 설정을 확인해 주세요.')), 30_000);
@@ -173,6 +182,19 @@
     async signal(session, event) {
       if (!this.live(session)) return;
       const pc = session.pc;
+      if(event.action==='RESTART_REQUEST'&&session.outgoing){await this.restart(session);return;}
+      if(event.action==='RESTART_OFFER'&&!session.outgoing) {
+        if(pc.remoteDescription?.sdp===event.sdp)return;
+        session.localSent=false;session.outgoingIce=[];
+        await pc.setRemoteDescription({type:'offer',sdp:event.sdp});if(!this.live(session))return;
+        await this.flushRemoteIce(session);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);
+        if(!this.live(session))return;
+        await this.command(session,'RESTART_ANSWER',{sdp:pc.localDescription.sdp});session.localSent=true;this.flushLocalIce(session);return;
+      }
+      if(event.action==='RESTART_ANSWER'&&session.outgoing) {
+        if(pc.remoteDescription?.sdp===event.sdp||pc.signalingState!=='have-local-offer')return;
+        await pc.setRemoteDescription({type:'answer',sdp:event.sdp});if(this.live(session))await this.flushRemoteIce(session);return;
+      }
       if (event.action === 'ACCEPTED' && session.outgoing) {
         if (session.offerStarted) return;
         session.offerStarted = true;
@@ -184,6 +206,7 @@
         if (!this.live(session)) return;
         session.localSent = true; this.flushLocalIce(session);
       } else if (event.action === 'OFFER' && !session.outgoing) {
+        if(pc.remoteDescription?.sdp===event.sdp)return;
         await pc.setRemoteDescription({type: 'offer', sdp: event.sdp});
         if (!this.live(session)) return;
         await this.flushRemoteIce(session);
@@ -195,6 +218,7 @@
         if (!this.live(session)) return;
         session.localSent = true; this.flushLocalIce(session);
       } else if (event.action === 'ANSWER' && session.outgoing) {
+        if(pc.remoteDescription?.sdp===event.sdp)return;
         await pc.setRemoteDescription({type: 'answer', sdp: event.sdp});
         if (this.live(session)) await this.flushRemoteIce(session);
       } else if (event.action === 'ICE' && event.candidate) {
@@ -203,9 +227,50 @@
         if (pc?.remoteDescription) await this.flushRemoteIce(session);
       }
     }
+    async resynchronize() {
+      const view=await Auth.request('/api/voice/current');
+      const session=this.current;
+      if(!view){if(session?.registered)this.cleanup(session,'통화가 종료되었습니다.');return;}
+      if(view.status==='RINGING' && view.calleeId===this.user && !session)
+        this.receive({type:'VOICE_CALL',action:'RING',roomId:view.roomId,call:view});
+      else if(view.status==='ACCEPTED' && session?.view.id===view.id && !session.accepted)
+        this.receive({type:'VOICE_CALL',action:'ACCEPTED',roomId:view.roomId,call:view});
+    }
+    async restart(session) {
+      if(!this.live(session)||!session.accepted)return;
+      if(!this.realtime.ready)throw new Error('신호 연결을 복구한 후 다시 통화해 주세요.');
+      if(session.restarting)return;
+      if((session.restartCount||0)>=3)throw new Error('재연결 한도를 초과했습니다. 다른 네트워크에서는 TURN 설정이 필요할 수 있습니다.');
+      session.restarting=true;session.restartCount=(session.restartCount||0)+1;
+      try {
+        session.phase='reconnecting';this.render();
+        if(!session.outgoing){await this.command(session,'RESTART_REQUEST');}
+        else {
+          session.localSent=false;session.outgoingIce=[];
+          const offer=await session.pc.createOffer({iceRestart:true});if(!this.live(session))return;
+          await session.pc.setLocalDescription(offer);if(!this.live(session))return;
+          await this.command(session,'RESTART_OFFER',{sdp:session.pc.localDescription.sdp});
+          session.localSent=true;this.flushLocalIce(session);
+        }
+        clearTimeout(session.restartTimer);session.restartTimer=setTimeout(()=>{if(this.live(session)&&session.pc.connectionState!=='connected')this.fail(session,new Error('음성 연결을 복구하지 못했습니다.'));},20000);
+      } finally {session.restarting=false;}
+    }
+    async changeMicrophone(deviceId) {
+      const session=this.current;if(!session?.stream)return;
+      const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,...(deviceId?{deviceId:{exact:deviceId}}:{})},video:false});
+      if(!this.live(session)){stopStream(stream);return;}
+      const track=stream.getAudioTracks()[0],sender=session.pc?.getSenders().find(sender=>sender.track?.kind==='audio');
+      try {if(sender)await sender.replaceTrack(track);if(!this.live(session)){stopStream(stream);return;}
+        const old=session.stream;old.getTracks().forEach(track=>track.onended=null);session.stream=stream;track.enabled=!session.muted;
+        track.onended=()=>this.fail(session,new Error('마이크 연결이 끊겼습니다.'));stopStream(old);
+      } catch(error){stopStream(stream);throw error;}
+    }
     async flushRemoteIce(session) {
-      while (this.live(session) && session.pc?.remoteDescription && session.incomingIce.length)
-        await session.pc.addIceCandidate(session.incomingIce.shift());
+      while (this.live(session) && session.pc?.remoteDescription && session.incomingIce.length) {
+        const candidate=session.incomingIce.shift();
+        if(candidate.usernameFragment && !session.pc.remoteDescription.sdp.includes('a=ice-ufrag:'+candidate.usernameFragment))continue;
+        await session.pc.addIceCandidate(candidate);
+      }
     }
     async flushLocalIce(session) {
       if (session.flushing || !session.localSent || !this.live(session)) return;
@@ -240,8 +305,8 @@
     }
     cleanup(session, message) {
       if (!this.live(session)) return;
-      session.closed = true; this.current = null;
-      for (const key of ['ringTimer', 'connectTimer', 'disconnectTimer']) clearTimeout(session[key]);
+      session.closed = true; this.current = null; globalThis.MediaPreferences?.stopRing?.();
+      for (const key of ['ringTimer', 'connectTimer', 'disconnectTimer','signalingTimer','restartTimer']) clearTimeout(session[key]);
       for (const key of ['heartbeat', 'clock']) clearInterval(session[key]);
       if (session.pc) {
         session.pc.onicecandidate = session.pc.ontrack = session.pc.onconnectionstatechange = null;
@@ -261,7 +326,7 @@
     }
     async playAudio(session) {
       if (!this.live(session) || !this.audio.srcObject) return;
-      try { await this.audio.play(); if (this.live(session)) this.$('voice-play').hidden = true; }
+      try { if(globalThis.MediaPreferences?.speaker && this.audio.setSinkId) await this.audio.setSinkId(MediaPreferences.speaker); await this.audio.play(); if (this.live(session)) this.$('voice-play').hidden = true; }
       catch (_) { if (this.live(session)) this.$('voice-play').hidden = false; }
     }
     render() {

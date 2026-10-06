@@ -36,7 +36,7 @@ class VoiceCallServiceTest {
         room = Room.directOf("alice", "bob"); room.id = "dm";
         when(rooms.findById("dm")).thenReturn(Optional.of(room));
         when(access.actor(any())).thenAnswer(inv -> user(((Principal) inv.getArgument(0)).getName()));
-        when(access.requireMember(eq("dm"), any())).thenAnswer(inv -> {
+        when(access.requireWritable(eq("dm"), any())).thenAnswer(inv -> {
             String id = ((Principal) inv.getArgument(1)).getName();
             if (!room.members.contains(id)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
             return user(id);
@@ -138,10 +138,14 @@ class VoiceCallServiceTest {
         clock.now += 3_000; start(); accept(); clock.now += VoiceCallService.MAX_CALL_MS; service.sweep();
         verify(events).send(eq("alice"), any(), eq("ENDED"), isNull(), isNull(), isNull(), eq("TIME_LIMIT"));
     }
-    @Test void failedRingPublicationDoesNotLeaveUsersBusy() {
+    @Test void failedRingPublicationRetainsRecoverableCallInsteadOfLosingState() {
         doThrow(new IllegalStateException("broker unavailable")).doNothing().when(events)
                 .send(eq("bob"), any(), eq("RING"), isNull(), isNull(), isNull(), isNull());
-        assertThrows(IllegalStateException.class, this::start);
+        assertDoesNotThrow(this::start);
+        status(HttpStatus.CONFLICT, this::start);
+        // Broker failure no longer rolls back a committed call; current-state recovery still finds it.
+        assertEquals(callId, service.current(bob).id());
+        action(alice, aliceClient, VoiceCallDtos.Action.END, null);
         clock.now += 3_000; assertDoesNotThrow(this::start);
     }
 }

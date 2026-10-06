@@ -81,12 +81,12 @@ class MessengerMongoIntegrationTest {
         messages.markRead("room", List.of(allowed.id, other.id), "alice");
         assertEquals(List.of("alice"), messageRepo.findById(allowed.id).orElseThrow().readBy);
         assertTrue(messageRepo.findById(other.id).orElseThrow().readBy.isEmpty());
-        verify(messaging).convertAndSend(eq("/sub/chat/room/read"), eq(java.util.Map.of("messageIds", List.of(allowed.id), "readerId", "alice")));
+        verify(messaging).convertAndSend(eq("/topic/chat/room/read"), eq((Object) java.util.Map.of("messageIds", List.of(allowed.id), "readerId", "alice")));
     }
-    @Test void persistenceProducesOneCanonicalBroadcast() {
+    @Test void persistenceAtomicallyRecordsPendingPublicationWithoutImmediateBroadcast() {
         Message saved = messages.save("room", "alice", "Alice", "hello");
         assertTrue(messageRepo.existsById(saved.id));
-        verify(messaging, times(1)).convertAndSend(eq("/sub/chat/room"), eq(saved));
-        verifyNoMoreInteractions(messaging);
+        assertTrue(messageRepo.findById(saved.id).orElseThrow().publicationPending);
+        verifyNoInteractions(messaging);
     }
 }

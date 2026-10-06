@@ -8,7 +8,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "app.openai.enabled=false",
         "app.crypto.aesKeyBase64=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
@@ -28,8 +29,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class MessengerHttpIntegrationTest {
     static final String DATABASE = "messenger_http_test_" + UUID.randomUUID().toString().replace("-", "");
     @DynamicPropertySource static void database(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.mongodb.uri", () -> System.getenv("MONGODB_TEST_URI"));
-        registry.add("spring.data.mongodb.database", () -> DATABASE);
+        registry.add("spring.mongodb.uri", () -> System.getenv("MONGODB_TEST_URI"));
+        registry.add("spring.mongodb.database", () -> DATABASE);
     }
     @Autowired TestRestTemplate http;
     @Autowired MongoTemplate mongo;
@@ -38,12 +39,14 @@ class MessengerHttpIntegrationTest {
     HttpHeaders headers(String loginId) {
         User user = new User(); user.loginId = loginId; user.userName = "표시-" + loginId; mongo.save(user);
         HttpHeaders headers = new HttpHeaders(); headers.setBearerAuth(jwt.createToken(loginId, Map.of()));
-        headers.setContentType(MediaType.APPLICATION_JSON); return headers;
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON); return headers;
     }
     @Test void htmlIsPublicButApisAndRefreshRequireAuthentication() {
         assertEquals(HttpStatus.OK, http.getForEntity("/servers", String.class).getStatusCode());
         assertEquals(HttpStatus.UNAUTHORIZED, http.getForEntity("/api/servers", String.class).getStatusCode());
-        assertEquals(HttpStatus.UNAUTHORIZED, http.postForEntity("/api/auth/refresh", null, String.class).getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN, http.postForEntity("/api/auth/refresh", null, String.class).getStatusCode());
+        HttpHeaders refresh = new HttpHeaders(); refresh.set("X-Requested-With", "XMLHttpRequest");
+        assertEquals(HttpStatus.UNAUTHORIZED, http.postForEntity("/api/auth/refresh", new HttpEntity<>(null, refresh), String.class).getStatusCode());
     }
     @Test void actualHttpFlowEnforcesChannelMembershipAndIdentity() {
         HttpHeaders alice = headers("http-alice"); HttpHeaders bob = headers("http-bob");
