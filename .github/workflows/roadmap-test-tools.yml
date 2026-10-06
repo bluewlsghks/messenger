@@ -1,0 +1,27 @@
+name: Roadmap isolated test tools
+on:
+  push:
+    branches: [maintenance/roadmap-workbench-20261006]
+    paths: [.github/workflows/roadmap-test-tools.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Export official MongoDB binary and Chromium test browser
+        run: |
+          mkdir -p tools/mongodb tools/browser
+          docker pull mongo:7.0
+          cid=$(docker create mongo:7.0)
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/usr/bin/mongod" tools/mongodb/mongod
+          python3 -m pip install playwright==1.55.0
+          PLAYWRIGHT_BROWSERS_PATH="$PWD/tools/browser" python3 -m playwright install chromium --only-shell
+          tar -czf roadmap-test-tools.tar.gz tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: roadmap-test-tools
+          path: roadmap-test-tools.tar.gz
+          retention-days: 1
