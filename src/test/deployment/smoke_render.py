@@ -58,15 +58,19 @@ def main():
     for name in ("alice", "bob"):
         identifier = f"smoke_{name}_{suffix}"
         api("POST", "/api/auth/register", {"id": identifier, "userName": name,
-            "password": password, "phoneNumber": "01012345678"}, expected=201)
+            "password": password}, expected=201)
         login = api("POST", "/api/auth/login", {"id": identifier, "password": password})
         users.append((identifier, login["token"]))
     (alice, at), (bob, bt) = users
     api("POST", "/api/friends", {"friendId": bob}, at, expected=204)
+    # A request must not silently register both users as friends before consent.
+    assert not api("GET", "/api/friends", token=at)
+    api("POST", "/api/contacts/requests/" + alice, {"action": "ACCEPT"}, bt, expected=204)
     friends = api("GET", "/api/friends", token=at)
     assert any(friend["userId"] == bob for friend in friends)
+    assert any(friend["userId"] == alice for friend in api("GET", "/api/friends", token=bt))
     room = api("POST", "/api/rooms/dm", {"peerId": bob}, at)
-    message = api("POST", "/api/messages", {"roomId": room["id"], "content": "container persistence smoke"}, at)
+    message = api("POST", "/api/messages", {"roomId": room["id"], "content": "container persistence smoke", "clientRequestId": str(uuid.uuid4())}, at)
     history = api("GET", "/api/messages/" + room["id"], token=bt)
     assert any(item["id"] == message["id"] for item in history)
     print("PASS: real MongoDB registration, login, friend list, DM save and peer history", flush=True)

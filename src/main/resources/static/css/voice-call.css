@@ -1,0 +1,19 @@
+.voice-panel {
+  position: fixed; z-index: 80; right: 24px; bottom: 24px;
+  width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 100px); overflow: auto;
+  padding: 22px; border: 1px solid #626bf5; border-radius: 18px;
+  background: #202330; color: #f5f5fa; box-shadow: 0 12px 48px #0006;
+}
+.voice-panel[hidden], .voice-panel [hidden] { display: none !important; }
+.voice-panel h3 { margin: 8px 0; font-size: 20px; overflow-wrap: anywhere; }
+.voice-panel p { margin: 8px 0; }
+#voice-duration { display: block; font-variant-numeric: tabular-nums; margin: 12px 0; font-size: 24px; }
+.voice-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.voice-actions button { min-height: 40px; }
+.voice-end { background: #b52e49; color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+.voice-end:hover { background: #98243d; }
+.voice-output { display: flex; align-items: center; gap: 12px; margin-top: 16px; font-size: 13px; }
+.voice-output input { min-width: 0; flex: 1; }
+.voice-help { color: #bec2d3; font-size: 12px; line-height: 1.6; }
+@media (max-width: 760px) { .voice-panel { right: 16px; bottom: 16px; padding: 18px; } }
+@media (prefers-reduced-motion: reduce) { .voice-panel * { transition: none !important; } }

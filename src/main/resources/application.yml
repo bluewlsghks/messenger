@@ -1,8 +1,17 @@
 spring:
-  data:
-    mongodb:
-      uri: ${MONGODB_URI}
-  jackson:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+  mongodb:
+    uri: ${MONGODB_URI}
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+  websocket:
+    messaging:
+      preferred-json-mapper: jackson2
+  jackson2:
     serialization:
       write-dates-as-timestamps: false
 server:
@@ -13,7 +22,42 @@ app:
     aesKeyBase64: ${APP_AES_KEY_BASE64}
   jwt:
     secretBase64: ${APP_JWT_SECRET_BASE64}
-    expiresMinutes: 120
+    expiresMinutes: 15
+  auth:
+    secure-cookie: ${APP_AUTH_SECURE_COOKIE:false}
+  costs:
+    allow-paid-services: ${APP_ALLOW_PAID_SERVICES:false}
   openai:
     enabled: ${APP_OPENAI_ENABLED:false}
     api-key: ${OPENAI_API_KEY:}
+
+  operations:
+    token: ${APP_OPERATIONS_TOKEN:}
+  push:
+    enabled: ${APP_PUSH_ENABLED:false}
+    public-key: ${APP_PUSH_PUBLIC_KEY:}
+    private-key: ${APP_PUSH_PRIVATE_KEY:}
+    subject: ${APP_PUSH_SUBJECT:}
+  search:
+    enabled: ${APP_SEARCH_ENABLED:false}
+    url: ${APP_SEARCH_URL:http://127.0.0.1:9200}
+    index: ${APP_SEARCH_INDEX:messenger-messages-v1}
+    api-key: ${APP_SEARCH_API_KEY:}
+  broker:
+    relay:
+      enabled: ${APP_BROKER_RELAY_ENABLED:false}
+      host: ${APP_BROKER_RELAY_HOST:127.0.0.1}
+      port: ${APP_BROKER_RELAY_PORT:61613}
+      login: ${APP_BROKER_RELAY_LOGIN:}
+      password: ${APP_BROKER_RELAY_PASSWORD:}
+      virtual-host: ${APP_BROKER_RELAY_VIRTUAL_HOST:/}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true

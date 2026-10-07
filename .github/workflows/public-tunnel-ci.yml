@@ -1,0 +1,26 @@
+name: Public tunnel launcher
+on:
+  push:
+    branches: [master, 'feature/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  offline-process-tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile launcher and offline subprocess checks
+        run: javac -encoding UTF-8 -d build/tunnel-smoke src/main/java/com/individual/messenger/dev/QuickTunnelProcess.java src/main/java/com/individual/messenger/dev/TunnelGuardian.java tests/java/QuickTunnelSmoke.java tests/java/TunnelGuardianSmoke.java
+      - name: Run without real cloudflared or network
+        run: java -cp build/tunnel-smoke com.individual.messenger.dev.QuickTunnelSmoke
+      - name: Owned child cleanup after forced parent termination
+        run: java -cp build/tunnel-smoke com.individual.messenger.dev.TunnelGuardianSmoke

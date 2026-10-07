@@ -2,14 +2,16 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.Room;
 import com.individual.messenger.domain.RoomType;
-import com.individual.messenger.repo.RoomRepository;
-import com.individual.messenger.repo.UserRepository;
+import com.individual.messenger.repository.RoomRepository;
+import com.individual.messenger.repository.UserRepository;
 import org.junit.jupiter.api.Test;
+
 import java.util.List;
 import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class RoomServiceTest {
     final RoomRepository rooms = mock(RoomRepository.class);

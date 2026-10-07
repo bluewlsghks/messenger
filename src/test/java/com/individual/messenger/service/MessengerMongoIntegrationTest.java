@@ -2,9 +2,9 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.ChatServer;
 import com.individual.messenger.domain.Message;
-import com.individual.messenger.repo.ChatServerRepository;
-import com.individual.messenger.repo.ServerInviteRepository;
-import com.individual.messenger.repo.MessageRepository;
+import com.individual.messenger.repository.ChatServerRepository;
+import com.individual.messenger.repository.MessageRepository;
+import com.individual.messenger.repository.ServerInviteRepository;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import org.junit.jupiter.api.*;
@@ -13,15 +13,17 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.repository.support.MongoRepositoryFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /** Uses only an isolated randomly named test database. Never points at MONGODB_URI. */
 @EnabledIfEnvironmentVariable(named = "MONGODB_TEST_URI", matches = ".+")
@@ -79,12 +81,12 @@ class MessengerMongoIntegrationTest {
         messages.markRead("room", List.of(allowed.id, other.id), "alice");
         assertEquals(List.of("alice"), messageRepo.findById(allowed.id).orElseThrow().readBy);
         assertTrue(messageRepo.findById(other.id).orElseThrow().readBy.isEmpty());
-        verify(messaging).convertAndSend(eq("/sub/chat/room/read"), eq(java.util.Map.of("messageIds", List.of(allowed.id), "readerId", "alice")));
+        verify(messaging).convertAndSend(eq("/topic/chat/room/read"), eq((Object) java.util.Map.of("messageIds", List.of(allowed.id), "readerId", "alice")));
     }
-    @Test void persistenceProducesOneCanonicalBroadcast() {
+    @Test void persistenceAtomicallyRecordsPendingPublicationWithoutImmediateBroadcast() {
         Message saved = messages.save("room", "alice", "Alice", "hello");
         assertTrue(messageRepo.existsById(saved.id));
-        verify(messaging, times(1)).convertAndSend(eq("/sub/chat/room"), eq(saved));
-        verifyNoMoreInteractions(messaging);
+        assertTrue(messageRepo.findById(saved.id).orElseThrow().publicationPending);
+        verifyNoInteractions(messaging);
     }
 }

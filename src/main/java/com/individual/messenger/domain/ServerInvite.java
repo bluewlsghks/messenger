@@ -8,6 +8,7 @@ import java.time.Instant;
 @Document("server_invites")
 public class ServerInvite {
     @Id public String id;
+    public long inviteVersion;
     public String serverId;
     public String createdBy;
     public Instant expiresAt;

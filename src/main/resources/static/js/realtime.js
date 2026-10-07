@@ -23,6 +23,7 @@
       this.readTopic = null;
       this.readCallback = null;
       window.addEventListener('messenger:logout', () => this.stop());
+      window.addEventListener('messenger:token', () => { if (this.client && Auth.getLoginId() === this.identity) this.start(); });
       window.addEventListener('pagehide', () => this.stop());
       window.addEventListener('pageshow', event => {
         // A page restored from the browser's back/forward cache needs a fresh transport.
@@ -65,6 +66,7 @@
         debug: () => {},
         beforeConnect: async () => {
           if (!current()) return;
+          if (expiresAt(Auth.getToken() || '') <= Date.now() + 30000) { try { await Auth.refresh(); } catch (_) { this.stop(); location.replace('/login'); return; } }
           const token = Auth.getToken() || '';
           const expiry = expiresAt(token);
           if (expiry <= Date.now() || Auth.getLoginId() !== this.identity) {
@@ -76,10 +78,8 @@
           clearTimeout(this.expiry);
           this.expiry = setTimeout(() => {
             if (!current() || Auth.getToken() !== token) return;
-            this.stop();
-            Auth.clearAuthStorage();
-            location.replace('/login');
-          }, Math.min(expiry - Date.now(), 2147483647));
+            Auth.refresh(true).catch(() => { this.stop(); Auth.clearAuthStorage(); location.replace('/login'); });
+          }, Math.max(1000, Math.min(expiry - Date.now() - 30000, 2147483647)));
           this.state(false, '연결 중…');
         },
         onConnect: () => {
@@ -88,7 +88,10 @@
             if (!current()) return;
             try {
               const event = JSON.parse(frame.body);
-              if (event.message?.id && event.message.roomId === event.roomId
+              if (event.type === 'CONFERENCE') { this.dispatchEvent(new CustomEvent('conference', {detail:event}));
+              } else if (event.type === 'VOICE_CALL' && event.call?.id && event.call.roomId === event.roomId) {
+                this.dispatchEvent(new CustomEvent('voice', {detail: event}));
+              } else if (event.message?.id && event.message.roomId === event.roomId
                   && ['MESSAGE_CREATED', 'MESSAGE_UPDATED', 'MESSAGE_DELETED'].includes(event.type)) {
                 this.dispatchEvent(new CustomEvent('notice', {detail: event}));
               }
@@ -133,7 +136,7 @@
     stop() {
       ++this.generation;
       clearTimeout(this.expiry);
-      this.ready = false;
+      this.state(false, '연결 종료');
       const client = this.client;
       this.client = null;
       this.readSubscription = null;

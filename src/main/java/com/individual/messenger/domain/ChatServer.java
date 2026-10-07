@@ -15,12 +15,20 @@ public class ChatServer {
     public String ownerId;
     public List<String> members = new ArrayList<>();
     public List<TextChannel> channels = new ArrayList<>();
+    public long revision;
+    public long inviteVersion;
+    public boolean deleted;
+    public List<String> moderators = new ArrayList<>();
+    public List<String> banned = new ArrayList<>();
     public Instant createdAt = Instant.now();
 
     public static class TextChannel {
         public String id;
         public String name;
         public Instant createdAt;
+        // null means all server members; empty means no ordinary member (owner always has access).
+        public List<String> readers;
+        public List<String> writers;
         public TextChannel() {}
         public TextChannel(String name) {
             this.id = new ObjectId().toHexString();

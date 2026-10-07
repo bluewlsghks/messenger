@@ -2,10 +2,11 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.Room;
 import com.individual.messenger.domain.RoomType;
-import com.individual.messenger.repo.RoomRepository;
-import com.individual.messenger.repo.UserRepository;
+import com.individual.messenger.repository.RoomRepository;
+import com.individual.messenger.repository.UserRepository;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;

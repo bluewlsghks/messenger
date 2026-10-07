@@ -4,7 +4,6 @@ import com.openai.models.responses.Response;
 
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Iterator;
 
 public final class OpenAiResponse {
     private final Response raw;

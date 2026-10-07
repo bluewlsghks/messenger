@@ -2,18 +2,20 @@ package com.individual.messenger.service;
 
 import com.individual.messenger.domain.ChatServer;
 import com.individual.messenger.domain.ServerInvite;
-import com.individual.messenger.repo.ChatServerRepository;
-import com.individual.messenger.repo.ServerInviteRepository;
+import com.individual.messenger.repository.ChatServerRepository;
+import com.individual.messenger.repository.ServerInviteRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.time.Instant;
 import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class ChatServerServiceTest {
     final ChatServerRepository servers = mock(ChatServerRepository.class);

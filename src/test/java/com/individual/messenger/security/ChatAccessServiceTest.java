@@ -3,15 +3,17 @@ package com.individual.messenger.security;
 import com.individual.messenger.domain.ChatServer;
 import com.individual.messenger.domain.Room;
 import com.individual.messenger.domain.User;
-import com.individual.messenger.repo.ChatServerRepository;
-import com.individual.messenger.repo.RoomRepository;
-import com.individual.messenger.repo.UserRepository;
+import com.individual.messenger.repository.ChatServerRepository;
+import com.individual.messenger.repository.RoomRepository;
+import com.individual.messenger.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -47,11 +49,13 @@ class ChatAccessServiceTest {
     }
     @Test void permitsServerMemberInChannel() {
         ChatServer server = new ChatServer(); server.members.add("alice");
+        ChatServer.TextChannel channel = new ChatServer.TextChannel("일반"); channel.id = "channel"; server.channels.add(channel);
         when(servers.findByChannelsId("channel")).thenReturn(Optional.of(server));
         assertSame(user, access.requireMember("channel", alice));
     }
     @Test void membershipIsRecheckedNotCached() {
         ChatServer server = new ChatServer(); server.members.add("alice");
+        ChatServer.TextChannel channel = new ChatServer.TextChannel("일반"); channel.id = "channel"; server.channels.add(channel);
         when(servers.findByChannelsId("channel")).thenReturn(Optional.of(server));
         access.requireMember("channel", alice); server.members.clear();
         assertThrows(ResponseStatusException.class, () -> access.requireMember("channel", alice));

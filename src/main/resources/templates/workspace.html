@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light"><title>Messenger</title>
-  <link rel="icon" href="data:,"><link rel="stylesheet" href="/css/workspace.css">
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="/css/workspace.css"><link rel="stylesheet" href="/css/voice-call.css"><link rel="stylesheet" href="/css/roadmap.css">
   <script src="/js/ui.js" defer></script><script src="/js/auth.js" defer></script>
   <script src="/webjars/sockjs-client/1.6.1/dist/sockjs.min.js" defer></script>
   <script src="/webjars/stomp__stompjs/7.3.0/bundles/stomp.umd.min.js" defer></script>
   <script src="/js/realtime.js" defer></script><script src="/js/notifications.js" defer></script>
-  <script src="/js/conversation.js" defer></script><script src="/js/workspace.js" defer></script>
+  <script src="/js/message-window.js" defer></script>
+<script src="/js/conversation.js" defer></script><script src="/js/media-preferences.js" defer></script><script src="/js/voice-call.js" defer></script><script src="/js/workspace.js" defer></script>
+<script src="/js/community.js" defer></script><script src="/js/attachments.js" defer></script><script src="/js/web-push.js" defer></script><script src="/js/conference.js" defer></script>
 </head>
 <body data-page="workspace">
 <a class="skip-link" href="#main-content">본문으로 이동</a>
@@ -31,7 +33,7 @@
   </aside>
   <main id="main-content" class="main-content">
     <header class="topbar"><button id="mobile-menu" class="icon-button mobile-only" data-icon="menu" aria-label="대화 목록 열기" aria-expanded="false"></button><span id="view-icon" class="view-icon" data-icon="users"></span><div class="view-heading"><h2 id="chat-title">친구</h2><span id="view-subtitle">가까운 사람들과, 하나의 공간에서.</span></div>
-      <div class="topbar-actions"><button id="search-messages" class="icon-button chat-action" data-icon="search" aria-label="대화 검색" title="대화 검색" hidden></button><button id="mute-room" class="icon-button chat-action" data-icon="bell" aria-label="이 대화 알림 끄기" title="이 대화 알림 끄기" aria-pressed="false" hidden></button><button id="toggle-members" class="icon-button chat-action" data-icon="users" aria-label="참여자 목록" aria-expanded="false" hidden></button><span class="vertical-divider"></span><button id="open-notifications" class="icon-button notification-button" aria-label="알림 센터 열기" title="알림 센터"><span data-icon="bell"></span><span id="total-unread" class="badge" hidden></span></button></div>
+      <div class="topbar-actions"><button id="voice-start" class="icon-button" aria-label="음성통화 시작" title="1:1 음성통화" hidden>☎</button><button id="search-messages" class="icon-button chat-action" data-icon="search" aria-label="대화 검색" title="대화 검색" hidden></button><button id="mute-room" class="icon-button chat-action" data-icon="bell" aria-label="이 대화 알림 끄기" title="이 대화 알림 끄기" aria-pressed="false" hidden></button><button id="toggle-members" class="icon-button chat-action" data-icon="users" aria-label="참여자 목록" aria-expanded="false" hidden></button><span class="vertical-divider"></span><button id="open-notifications" class="icon-button notification-button" aria-label="알림 센터 열기" title="알림 센터"><span data-icon="bell"></span><span id="total-unread" class="badge" hidden></span></button></div>
     </header>
     <div id="workspace-error" class="error-banner" role="alert" hidden></div>
     <section id="friends-view" class="friends-view">
@@ -50,10 +52,24 @@
     </section>
     <aside id="search-panel" class="search-panel" aria-label="메시지 검색 결과" hidden><div class="panel-heading"><h3>대화 검색</h3><button id="close-search" class="icon-button" data-icon="x" aria-label="검색 닫기"></button></div><form id="search-form" class="search-form"><input id="search-query" maxlength="100" aria-label="메시지 검색어" placeholder="이 대화에서 검색"><button class="primary" type="submit">검색</button></form><p class="muted padding">최근 검색 결과 최대 50개를 표시합니다.</p><div id="search-results"></div></aside>
   </main>
-  <aside id="members-panel" class="members-panel" hidden><div class="panel-heading"><h3 id="members-heading">참여자</h3><button id="close-members" class="icon-button" data-icon="x" aria-label="참여자 닫기"></button></div><div id="member-list"></div><p class="footnote">서버 멤버 목록입니다.<br>접속 상태 표시는 아직 제공하지 않습니다.</p></aside>
+  <aside id="members-panel" class="members-panel" hidden><div class="panel-heading"><h3 id="members-heading">참여자</h3><button id="close-members" class="icon-button" data-icon="x" aria-label="참여자 닫기"></button></div><div id="member-list"></div><p class="footnote">서버 멤버 목록입니다.<br>온라인 표시는 최근 75초의 활동을 기준으로 합니다.</p></aside>
 </div>
 <button id="sidebar-backdrop" class="sidebar-backdrop" aria-label="대화 목록 닫기" hidden></button>
 <aside id="notification-panel" class="notification-panel" hidden aria-label="알림 센터"><div class="panel-heading"><div><span class="eyebrow">INBOX</span><h3>알림 센터</h3></div><button id="close-notifications" class="icon-button" data-icon="x" aria-label="알림 센터 닫기"></button></div><div class="notice-toolbar"><span>이번 접속의 새 메시지</span><button id="clear-notifications" class="text-button">기록 비우기</button></div><div id="notification-list" class="notification-list"></div><div class="notification-footer"><button id="enable-desktop" class="secondary">데스크톱 알림 설정</button><p>브라우저 탭을 열어 둔 동안 알림을 받습니다.</p></div></aside>
 <div id="toast-stack" class="toast-stack" aria-live="polite"></div><div id="announcements" class="sr-only" aria-live="polite"></div>
 <dialog id="app-dialog" class="app-dialog" aria-labelledby="dialog-title"><div class="dialog-heading"><h2 id="dialog-title"></h2><button id="dialog-close" class="icon-button" data-icon="x" aria-label="닫기" type="button"></button></div><div id="dialog-body"></div></dialog>
+<aside id="voice-panel" class="voice-panel" aria-label="1:1 음성통화" hidden>
+  <span class="eyebrow">VOICE CALL</span><h3 id="voice-peer"></h3>
+  <p id="voice-state" role="status" aria-live="polite"></p><time id="voice-duration">00:00</time>
+  <div class="voice-actions">
+    <button id="voice-accept" class="primary" type="button">수락</button>
+    <button id="voice-decline" class="secondary" type="button">거절</button>
+    <button id="voice-mute" class="secondary" type="button" aria-pressed="false" hidden>마이크 끄기</button>
+    <button id="voice-end" class="voice-end" type="button" hidden>통화 종료</button>
+    <button id="voice-play" class="primary" type="button" hidden>상대방 소리 재생</button>
+  </div>
+  <label id="voice-output" class="voice-output" hidden>상대방 음량 <input id="voice-volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="상대방 음량"></label>
+  <p class="voice-help">수신자는 수락 후에만 마이크를 사용합니다. 이어폰 사용을 권장합니다.</p>
+</aside>
+<audio id="voice-audio" autoplay playsinline></audio>
 </body></html>

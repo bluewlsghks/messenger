@@ -13,9 +13,11 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+
 import java.net.URI;
 import java.net.http.*;
 import java.util.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
@@ -25,7 +27,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WorkspaceHttpIntegrationTest {
     static final String DATABASE="messenger_workspace_test_"+UUID.randomUUID().toString().replace("-","");
-    @DynamicPropertySource static void database(DynamicPropertyRegistry registry){registry.add("spring.data.mongodb.uri",()->System.getenv("MONGODB_TEST_URI"));registry.add("spring.data.mongodb.database",()->DATABASE);}
+    @DynamicPropertySource static void database(DynamicPropertyRegistry registry){registry.add("spring.mongodb.uri",()->System.getenv("MONGODB_TEST_URI"));registry.add("spring.mongodb.database",()->DATABASE);}
+    @Autowired com.individual.messenger.crypto.CryptoService crypto;
     @Autowired MongoTemplate mongo;
     @Autowired JwtUtil jwt;
     @Autowired ObjectMapper mapper;
@@ -40,6 +43,8 @@ class WorkspaceHttpIntegrationTest {
         var empty=request(alice,"GET","/api/friends",null);assertEquals(200,empty.statusCode(),empty.body());assertEquals(0,json(empty).size());
         assertEquals(204,request(alice,"POST","/api/friends",Map.of("friendId",bob)).statusCode());
         assertEquals(204,request(alice,"POST","/api/friends",Map.of("friendId",bob)).statusCode());
+        assertEquals(0,json(request(alice,"GET","/api/friends",null)).size());
+        assertEquals(204,request(bob,"POST","/api/contacts/requests/"+alice,Map.of("action","ACCEPT")).statusCode());
         var list=json(request(alice,"GET","/api/friends",null));assertEquals(1,list.size());assertEquals("이름-"+bob,list.get(0).get("userName").asText());
         assertEquals(alice,json(request(bob,"GET","/api/friends",null)).get(0).get("userId").asText());
         assertEquals(204,request(alice,"DELETE","/api/friends?friendId="+bob,null).statusCode());assertEquals(0,json(request(bob,"GET","/api/friends",null)).size());
@@ -70,5 +75,41 @@ class WorkspaceHttpIntegrationTest {
     }
     @Test void workspaceAssetsAreLocallyAvailable()throws Exception{
         for(String path:List.of("/home","/friends","/servers","/css/workspace.css","/js/workspace.js","/webjars/stomp__stompjs/7.3.0/bundles/stomp.umd.min.js","/webjars/sockjs-client/1.6.1/dist/sockjs.min.js")){var response=request(null,"GET",path,null);assertEquals(200,response.statusCode(),path+" "+response.body());}
+    }
+
+    @Test void registrationWithoutPhoneReturns201AndStoresOneUser() throws Exception {
+        String id = "signup-" + UUID.randomUUID();
+        var created = request(null, "POST", "/api/auth/register", Map.of("id", " " + id + " ", "userName", " 새 이름 ", "password", "Password!234"));
+        assertEquals(201, created.statusCode(), created.body());
+        assertEquals(id, json(created).get("id").asText());
+        var documents = mongo.getCollection("users").find(new Document("loginId", id)).into(new ArrayList<Document>());
+        assertEquals(1, documents.size());
+        assertNull(documents.get(0).get("phoneEnc"));
+        assertNull(documents.get(0).get("legacyPhoneNumber"));
+        assertEquals("새 이름", documents.get(0).getString("userName"));
+        assertEquals(200, request(null, "POST", "/api/auth/login", Map.of("id", id, "password", "Password!234")).statusCode());
+        assertTrue(json(request(id, "GET", "/api/users/me", null)).get("phoneNumber").isNull());
+    }
+    @Test void obsoletePhonePayloadIsIgnoredAndIdentityFieldsStillValidate() throws Exception {
+        String id = "compat-" + UUID.randomUUID();
+        var payload = new HashMap<String, Object>(Map.of("id", id, "userName", "테스트", "password", "Password!234", "phoneNumber", "not-a-telephone"));
+        assertEquals(201, request(null, "POST", "/api/auth/register", payload).statusCode());
+        Document saved = mongo.getCollection("users").find(new Document("loginId", id)).first();
+        assertNotNull(saved); assertNull(saved.get("phoneEnc")); assertFalse(saved.containsKey("phoneNumber"));
+        for (String field : List.of("id", "userName", "password")) {
+            var incomplete = new HashMap<>(payload); incomplete.remove(field);
+            assertEquals(400, request(null, "POST", "/api/auth/register", incomplete).statusCode(), field);
+        }
+        assertEquals(409, request(null, "POST", "/api/auth/register", payload).statusCode());
+    }
+    @Test void existingEncryptedPhoneSurvivesProfileRename() throws Exception {
+        String id = user("phone-legacy-");
+        String encrypted = crypto.encryptString("01012345678");
+        mongo.getCollection("users").updateOne(new Document("loginId", id), new Document("$set", new Document("phoneEnc", encrypted)));
+        assertEquals("01012345678", json(request(id, "GET", "/api/users/me", null)).get("phoneNumber").asText());
+        assertEquals(200, request(id, "PATCH", "/api/users/me", Map.of("userName", "새 표시 이름")).statusCode());
+        Document saved = mongo.getCollection("users").find(new Document("loginId", id)).first();
+        assertNotNull(saved); assertEquals(encrypted, saved.getString("phoneEnc"));
+        assertEquals("01012345678", json(request(id, "GET", "/api/users/me", null)).get("phoneNumber").asText());
     }
 }

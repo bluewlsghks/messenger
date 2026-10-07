@@ -1,0 +1,40 @@
+# Optional LOCAL development infrastructure. No cloud service/account is created.
+services:
+  mongo:
+    image: mongo:7.0.43
+    profiles: [database]
+    ports: ['127.0.0.1:27017:27017']
+    volumes: [mongo-data:/data/db]
+  rabbitmq:
+    image: rabbitmq:4.3.1
+    profiles: [broker]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${APP_BROKER_RELAY_LOGIN:?Set an explicit broker login}
+      RABBITMQ_DEFAULT_PASS: ${APP_BROKER_RELAY_PASSWORD:?Set an explicit broker password}
+    ports: ['127.0.0.1:61613:61613']
+    volumes:
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - broker-data:/var/lib/rabbitmq
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 10s
+      retries: 12
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.4.6
+    profiles: [search]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      xpack.license.self_generated.type: basic
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports: ['127.0.0.1:9200:9200']
+    volumes: [search-data:/usr/share/elasticsearch/data]
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fs http://localhost:9200/_cluster/health >/dev/null']
+      interval: 10s
+      retries: 20
+volumes:
+  mongo-data:
+  broker-data:
+  search-data:

@@ -6,17 +6,20 @@ import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.models.responses.ResponseCreateParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service
 public class OpenAiService {
     private final OpenAIClient client;
     public OpenAiService(@Value("${app.openai.api-key:}") String apiKey,
-                         @Value("${app.openai.enabled:false}") boolean enabled) {
-        if (enabled && (apiKey == null || apiKey.isBlank())) {
+                         @Value("${app.openai.enabled:false}") boolean enabled,
+                         @Value("${app.costs.allow-paid-services:false}") boolean allowPaidServices) {
+        boolean active = enabled && allowPaidServices;
+        if (active && (apiKey == null || apiKey.isBlank())) {
             throw new IllegalStateException("AI 기능을 활성화하려면 OPENAI_API_KEY가 필요합니다.");
         }
-        this.client = enabled ? OpenAIOkHttpClient.builder().apiKey(apiKey).build() : null;
+        this.client = active ? OpenAIOkHttpClient.builder().apiKey(apiKey).build() : null;
     }
     public boolean isEnabled() { return client != null; }
     public String reply(List<Message> recent, String userText) {

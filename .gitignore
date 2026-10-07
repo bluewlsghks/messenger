@@ -37,3 +37,12 @@ logs/
 .env.public.*
 !.env.public.example
 /.public/
+
+# Python test caches
+__pycache__/
+*.py[cod]
+
+# Local infrastructure and backup secrets; never publish generated VAPID keys or DB archives.
+.local/
+*.archive.gz
+deploy/turn/turnserver.conf
