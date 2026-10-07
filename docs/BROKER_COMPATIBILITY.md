@@ -20,4 +20,8 @@ Relay 모드에서만 `BrokerDestinationCodec`이 애플리케이션의 `/topic/
 
 ## 프레임 헤더 수명주기
 
-시스템 발행은 처음에 `simpSessionId`가 없을 수 있습니다. 변환한 STOMP 헤더를 너무 일찍 불변으로 만들면 relay가 시스템 세션을 지정할 때 `Already immutable`로 실패합니다. codec은 원본 메시지를 바꾸지 않은 별도 헤더 사본을 다음 Spring 처리 단계까지 mutable로 유지합니다. 세션 없는 서버 발행과 개인 목적지 복원 단계의 회귀 검사를 추가했으며 최종 동결은 프레임워크 경계에서 수행합니다.
+2026-10-07 후속 수정: 실제 broker channel에는 codec 뒤에서 헤더를 동결하는 `ImmutableMessageChannelInterceptor`가 있습니다. `setLeaveMutable(true)`만으로 이를 피할 수 없으므로 앞선 단독 codec 테스트는 실제 채널 경계를 충분히 재현하지 못했습니다.
+
+서버 발행은 목적지만 변환하고 **SIMP accessor를 그대로 유지**합니다. relay가 이 메시지를 받아 새 STOMP accessor를 만든 뒤 시스템 세션을 설정하게 했습니다. 이미 인증된 클라이언트 구독/수신 프레임은 STOMP 명령·세션·구독 ID와 개인 큐의 exclusive/auto-delete 정책을 유지합니다. framework의 불변성 인터셉터를 제거하거나 권한 검사를 우회하지 않습니다.
+
+회귀 검사는 실제 `ExecutorSubscribableChannel → codec → ImmutableMessageChannelInterceptor → StompBrokerRelayMessageHandler`의 헤더 처리 경계를 통과합니다. 해당 단위 검사는 TCP delivery를 가장하지 않으며, 실제 두 앱/RabbitMQ 전송 검사는 별도의 infrastructure 시나리오에서 실행합니다. 실행 결과는 [ROADMAP_VALIDATION.md](ROADMAP_VALIDATION.md)를 참고합니다.

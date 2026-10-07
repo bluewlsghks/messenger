@@ -5,6 +5,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.SimpMessageType;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
 import java.util.regex.Pattern;
@@ -45,12 +46,20 @@ public final class BrokerDestinationCodec implements ChannelInterceptor {
                     : "/topic/chat." + room.group(1) + (room.group(2) == null ? "" : ".read");
         } else return message;
         if (!fromBroker && headers.getCommand() == null && headers.getMessageType() == SimpMessageType.MESSAGE) {
-            headers.updateStompCommandAsClientMessage();
+            // Server publications must remain SIMP here. The channel's framework
+            // ImmutableMessageChannelInterceptor runs after this codec, regardless
+            // of setLeaveMutable(true). The relay wraps a SIMP publication itself
+            // and assigns its system session on a fresh mutable STOMP accessor.
+            // Returning a STOMP accessor here makes it reuse already-frozen headers.
+            SimpMessageHeaderAccessor publication = SimpMessageHeaderAccessor.wrap(message);
+            publication.setDestination(translated);
+            publication.setNativeHeader("destination", translated);
+            return MessageBuilder.createMessage(message.getPayload(), publication.getMessageHeaders());
         }
         headers.setDestination(translated);
         headers.setNativeHeader("destination", translated);
-        // The next framework stage sets the system session or restores the
-        // original user destination. Freeze only at the framework boundary.
+        // Client frames retain STOMP command/session/subscription metadata.
+        // The framework controls their final immutability boundary.
         headers.setLeaveMutable(true);
         return MessageBuilder.createMessage(message.getPayload(), headers.getMessageHeaders());
     }

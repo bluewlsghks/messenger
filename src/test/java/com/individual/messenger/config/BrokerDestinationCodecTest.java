@@ -10,6 +10,7 @@ import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.access.AccessDeniedException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -30,7 +31,7 @@ class BrokerDestinationCodecTest {
         Message<?> original = applicationMessage("/topic/chat/room_12");
         Message<?> wire = encode.preSend(original, null);
         assertEquals("/topic/chat.room_12", destination(wire));
-        assertEquals(StompCommand.SEND, StompHeaderAccessor.wrap(wire).getCommand());
+        assertEquals(SimpMessageHeaderAccessor.class, MessageHeaderAccessor.getAccessor(wire, MessageHeaderAccessor.class).getClass());
         assertEquals(destination(wire), StompHeaderAccessor.wrap(wire).getFirstNativeHeader("destination"));
         assertSame(original.getPayload(), wire.getPayload());
         assertEquals("alice", wire.getHeaders().get("chatRecipient"));
@@ -84,7 +85,7 @@ class BrokerDestinationCodecTest {
             Message<?> original = applicationMessage("/queue/" + kind + "-usertest-session");
             Message<?> encoded = encode.preSend(original, null);
             assertEquals("/exchange/amq.direct/" + kind + "-usertest-session", destination(encoded));
-            assertEquals(StompCommand.SEND, StompHeaderAccessor.wrap(encoded).getCommand());
+            assertEquals(SimpMessageHeaderAccessor.class, MessageHeaderAccessor.getAccessor(encoded, MessageHeaderAccessor.class).getClass());
             assertEquals(destination(original), destination(decode.preSend(encoded, null)));
         }
     }
