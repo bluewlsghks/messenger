@@ -71,9 +71,13 @@
         throw new Error('이 브라우저에서는 음성통화를 지원하지 않습니다. 최신 Chrome, Edge, Firefox 또는 Safari를 사용해 주세요.');
     }
     session(view, outgoing) {
-      const session = {view, outgoing, phase: outgoing ? 'preparing' : 'ringing', closed: false,
+      this.sessionGeneration = (this.sessionGeneration || 0) + 1;
+      const session = {view, outgoing, registered: !outgoing, phase: outgoing ? 'preparing' : 'ringing', closed: false,
         inbox: Promise.resolve(), outgoingIce: [], incomingIce: [], localSent: false, muted: false};
       this.current = session;
+      // A reconnect can leave a remote broker's user registry briefly stale.
+      // Reconcile only an active registered call; never acquire media from polling.
+      session.stateTimer = setInterval(() => this.reconcileSession(session), 3000);
       session.ringTimer = setTimeout(() => { if (this.live(session)) this.hangup(REASONS.NO_ANSWER); }, 50_000);
       this.render(); return session;
     }
@@ -227,14 +231,36 @@
         if (pc?.remoteDescription) await this.flushRemoteIce(session);
       }
     }
+    reconcileSession(session) {
+      if (!this.live(session) || !session.registered || !this.realtime.ready) return;
+      // Transient HTTP failures are not evidence that a call ended.
+      return this.resynchronize().catch(() => {});
+    }
     async resynchronize() {
-      const view=await Auth.request('/api/voice/current');
-      const session=this.current;
-      if(!view){if(session?.registered)this.cleanup(session,'통화가 종료되었습니다.');return;}
-      if(view.status==='RINGING' && view.calleeId===this.user && !session)
-        this.receive({type:'VOICE_CALL',action:'RING',roomId:view.roomId,call:view});
-      else if(view.status==='ACCEPTED' && session?.view.id===view.id && !session.accepted)
-        this.receive({type:'VOICE_CALL',action:'ACCEPTED',roomId:view.roomId,call:view});
+      if (this.synchronizing) return;
+      const session = this.current, generation = this.sessionGeneration || 0;
+      // A start may still be waiting for microphone permission or its POST response.
+      if (session && !session.registered) return;
+      const observedView = session?.view, observedPhase = session?.phase;
+      this.synchronizing = true;
+      try {
+        const view = await Auth.request('/api/voice/current');
+        // Do not let an older HTTP snapshot erase a newer call or a state transition.
+        if (this.current !== session || (this.sessionGeneration || 0) !== generation
+            || (session && (session.closed || session.view !== observedView || session.phase !== observedPhase))) return;
+        if (!view || (session && view.id !== session.view.id)) {
+          if (session) this.cleanup(session, '통화가 종료되었습니다.');
+          return;
+        }
+        if (session && !ownsCall(view, this.user, this.clientId)) {
+          this.cleanup(session, '다른 탭에서 통화를 수락했습니다.');
+          return;
+        }
+        if (view.status === 'RINGING' && view.calleeId === this.user && !session)
+          this.receive({type: 'VOICE_CALL', action: 'RING', roomId: view.roomId, call: view});
+        else if (view.status === 'ACCEPTED' && session?.view.id === view.id && !session.accepted)
+          this.receive({type: 'VOICE_CALL', action: 'ACCEPTED', roomId: view.roomId, call: view});
+      } finally { this.synchronizing = false; }
     }
     async restart(session) {
       if(!this.live(session)||!session.accepted)return;
@@ -307,7 +333,7 @@
       if (!this.live(session)) return;
       session.closed = true; this.current = null; globalThis.MediaPreferences?.stopRing?.();
       for (const key of ['ringTimer', 'connectTimer', 'disconnectTimer','signalingTimer','restartTimer']) clearTimeout(session[key]);
-      for (const key of ['heartbeat', 'clock']) clearInterval(session[key]);
+      for (const key of ['heartbeat', 'clock', 'stateTimer']) clearInterval(session[key]);
       if (session.pc) {
         session.pc.onicecandidate = session.pc.ontrack = session.pc.onconnectionstatechange = null;
         session.pc.close();
