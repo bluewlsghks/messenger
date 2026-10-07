@@ -1,4 +1,4 @@
-> **2026-10-06 후속 변경:** 이 문서는 초기 구현/검증 기록도 포함합니다. 현재 공유 통화 상태·최대 4명 미디어·독립 터널 guardian·Boot 4 설정은 [로드맵 구현](ROADMAP_IMPLEMENTATION.md)과 [운영 안내](OPERATIONS.md)를 우선 참조하세요.
+> **2026-10-07 후속 변경:** 이 문서는 초기 구현/검증 기록도 포함합니다. 현재 공유 통화 상태·최대 4명 미디어·독립 터널 guardian·Boot 4 설정은 [로드맵 구현](ROADMAP_IMPLEMENTATION.md)과 [운영 안내](OPERATIONS.md)를 우선 참조하세요.
 
 # IntelliJ Run/Debug와 함께 공개 URL 자동 생성
 
@@ -60,19 +60,20 @@ cloudflared가 이미 설치되어 있어야 합니다. 이 기능은 실행 파
 ## 범위 및 주의
 
 - 계정·도메인 없이 사용하는 개발용 Quick Tunnel입니다. 주소는 재실행 시 변경되며 PC·메신저·터널 중 하나라도 중지되면 서비스 접속이 유지되지 않습니다. 상시 무료 서버 배포나 고정 도메인을 만드는 기능이 아닙니다.
-- URL을 아는 사람은 로그인/회원가입에 접근할 수 있고 HTTP 트래픽은 Cloudflare를 통과합니다. 개발 DB와 테스트 계정을 사용합니다. 가입/로그인 요청 제한 등 운영 보안 과제는 별도입니다.
+- URL을 아는 사람은 로그인/회원가입에 접근할 수 있고 HTTP 트래픽은 Cloudflare를 통과합니다. 개발 DB와 테스트 계정을 사용합니다. 요청 제한은 추가했지만 운영망 보안 정책 검증과는 별도입니다.
 - HTTPS 웹 터널은 **WebRTC 음성용 TURN 서버가 아닙니다.** 외부망 음성 연결은 별도 STUN/TURN 조건에 영향을 받습니다.
-- 정상 종료 훅을 사용합니다. OS의 강제 종료, JVM 크래시, IntelliJ의 강제 Kill까지 자식 프로세스 정리를 보장하지 않습니다. 필요 시 이번 터널의 프로세스만 확인하여 종료합니다.
+- 정상 종료 훅과 독립 `TunnelGuardian`을 사용합니다. Guardian은 부모 PID/시작 시각과 소유한 터널을 확인하여 부모 강제 종료 뒤 자식 정리를 시도합니다. 부모와 guardian을 함께 강제 종료하거나 OS가 중지되는 모든 상황까지 보장하지는 않습니다. 실제 IntelliJ/Cloudflare 검증은 오프라인 프로세스 검사와 별도입니다.
 
 ## 검증
 
 2026-10-06 Java 21/Linux에서 `QuickTunnelProcess`와 가짜 Java 자식 프로세스로 **오프라인 17개 검사 통과**를 확인했습니다. URL 추출, 격리 설정, 파일 저장/삭제, 정상·중복 종료, 시간 초과, 조기/실행 중 종료, 위장 호스트·HTTP 거부, 점유/랜덤 포트, 누락된 실행 파일, 시작 중 인터럽트를 검사합니다. 실제 cloudflared 실행이나 인터넷 공개는 하지 않았습니다.
 
 ```text
-javac -encoding UTF-8 -d build/tunnel-smoke src/main/java/com/individual/messenger/dev/QuickTunnelProcess.java tests/java/QuickTunnelSmoke.java
+javac -encoding UTF-8 -d build/tunnel-smoke src/main/java/com/individual/messenger/dev/QuickTunnelProcess.java src/main/java/com/individual/messenger/dev/TunnelGuardian.java tests/java/QuickTunnelSmoke.java tests/java/TunnelGuardianSmoke.java
 java -cp build/tunnel-smoke com.individual.messenger.dev.QuickTunnelSmoke
+java -cp build/tunnel-smoke com.individual.messenger.dev.TunnelGuardianSmoke
 ```
 
-`PublicTunnelListenerTest`에 Spring 설정·수명주기 테스트 10개를 추가했습니다. 기존 Gradle 테스트와 별도로 Windows/Linux 오프라인 프로세스 CI를 추가했습니다. **이 문서의 로컬 17개 통과는 전체 Spring 빌드/10개 테스트 통과, 실제 Windows IntelliJ 실행, Cloudflare 외부 접속, 실제 음성통화 검증을 의미하지 않습니다.** 해당 결과는 PR의 CI와 별도 기기 검증으로 확인합니다.
+2026-10-07 위 명령으로 Linux의 17개 및 guardian 강제 부모 종료 검사를 재실행했습니다. Windows/Linux CI 결과와 Spring 설정·수명주기 테스트 결과는 [ROADMAP_VALIDATION.md](ROADMAP_VALIDATION.md)를 확인합니다. **오프라인 프로세스 통과는 실제 Windows IntelliJ 실행, Cloudflare 외부 접속, 실제 음성통화 검증을 의미하지 않습니다.**
 
 참고: [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/), [IntelliJ Application 실행 설정](https://www.jetbrains.com/help/idea/run-debug-configuration-java-application.html).

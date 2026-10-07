@@ -39,7 +39,7 @@ ERP 운영에서 쌓은 문제 해결력에, MES·실시간 서비스 설계 경
 
 **Java 21 · Spring Boot 4.1.1 · MongoDB · Thymeleaf / Vanilla JavaScript** 기반 개인 프로젝트입니다. DM·그룹·서버/채널 채팅과 1:1 음성통화에, README 후속 과제의 신뢰성·권한·미디어·운영 기능을 추가했습니다.
 
-> 문서 기준: 2026-10-06, `4ffa27f` 이후 로드맵 구현. 기능 브랜치의 코드이며 **master 병합·실서비스 배포·실기기 검증 완료를 뜻하지 않습니다.** 무료 개발 기능과 별도 인프라 준비가 필요한 기능을 구분합니다. 기존 개발자 소개/이력서는 위에 유지했습니다.
+> 문서 기준: 2026-10-07, `4ffa27f` 이후 로드맵 및 `0e0b8cb`까지의 후속 수정. 기능 브랜치의 코드이며 **master 병합·실서비스 배포·실기기 검증 완료를 뜻하지 않습니다.** 무료 개발 기능과 별도 인프라 준비가 필요한 기능을 구분합니다. 기존 개발자 소개/이력서는 위에 유지했습니다.
 
 [기능](#features) · [구조](#architecture) · [실행](#getting-started) · [과제 처리 현황](#roadmap-status) · [검증](#tests--verification) · [운영 안내](docs/OPERATIONS.md)
 
@@ -77,11 +77,11 @@ Java/Spring 백엔드와 MongoDB 기반 실시간 메신저를 설계하고, RES
 | 친구·DM·그룹 | 친구 요청/수락/거절/취소, 차단/해제, 기존 친구 보존, DM 재사용, 그룹 생성 |
 | 서버·채널 | 생성/참여, 소유자·관리자 역할, 채널별 읽기/쓰기, 탈퇴·강퇴·재참여 차단, 소유권 이전, 서버 소프트 삭제, 초대 일괄 철회 |
 | 메시지 | 저장/실시간 수신, 본인 수정·소프트 삭제, 버전 충돌, 검색, 복합 커서, 대화별 초안·IME·실패 입력 보존 |
-| 전달 신뢰성 | 요청 UUID 기반 중복 저장 방지, 메시지 원자적 outbox, 재시도/버전 ACK, 전체 내역 페이지 대조 |
+| 전달 신뢰성 | 요청 UUID 기반 중복 저장 방지, 메시지 원자적 outbox, 재시도/버전 조건부 처리 완료, 전체 내역 페이지 대조 |
 | 대화 확장 | GridFS 파일 전송, 답장·스레드·현재 멤버 멘션, 가상 메시지 DOM 창 |
 | 읽음·상태 | readBy 공통 모델, DB unread 집계, 탭별 온라인 lease·입력 중 표시 |
 | 알림 | 앱 안/데스크톱/선택적 소리·미리보기·대화 음소거, 선택적 탭 종료 후 Web Push 및 수신 통화 알림 |
-| 미디어 | DM 1:1 음성, 그룹/채널 최대 4명 음성·영상·화면 공유, 음소거·장치 선택·통화 이력·벨소리·제한된 ICE restart |
+| 미디어 | DM 1:1 음성, 그룹/채널 최대 4명 음성·영상·화면 공유, 음소거·장치 선택·통화 이력·벨소리·제한된 ICE restart·활성 통화 상태 재대조 |
 | 선택 인프라 | RabbitMQ 다중 인스턴스 relay, Mongo 공유 통화 상태, Elasticsearch 비동기 색인/재색인 |
 | 운영 | 최소 health·보호된 metrics/읽기 전용 감사, 새 DB만 허용하는 복구 도구, 의존성 검사·로컬 재연결 soak |
 | 개발 공개 URL | IntelliJ Run/Debug와 선택적 Quick Tunnel 동시 시작, 정확한 Origin 적용, 강제 앱 종료 감시 guardian |
@@ -126,7 +126,7 @@ STOMP에 음성 바이트를 보내지 않습니다. 메시지 outbox는 **별�
 
 ## Getting Started
 
-기존 소스에서 로컬 수정사항을 먼저 커밋/보관한 뒤 기능 브랜치를 갱신하고 Gradle 동기화합니다. **main 클래스는 `com.individual.messenger.MessengerApplication` 그대로**이며 IntelliJ Run/Debug를 사용합니다. `master` 병합 여부는 PR을 확인합니다. 강제 reset으로 로컬 수정사항을 버리지 않습니다.
+기존 소스에서 로컬 수정사항을 먼저 커밋/보관한 뒤 기능 브랜치를 갱신하고 Gradle 동기화합니다. **main 클래스는 `com.individual.messenger.MessengerApplication` 그대로**이며 IntelliJ Run/Debug를 사용합니다. **현재 작업 브랜치는 `feature/voice-calls-20261006`이며 PR #2로 검토합니다.** `master` 병합 여부는 PR을 확인합니다. 강제 reset으로 로컬 수정사항을 버리지 않습니다. 인증 세션 구조가 바뀌었으므로 갱신 후 다시 로그인합니다.
 
 ### 기본 환경 변수
 
@@ -162,7 +162,7 @@ Linux/macOS는 `bash ./gradlew test bootJar`, `bash ./gradlew bootRun`을 사용
 | Elasticsearch | `APP_SEARCH_ENABLED`, `APP_SEARCH_URL`, `APP_SEARCH_INDEX`, `APP_SEARCH_API_KEY` |
 | 운영 진단 | `APP_OPERATIONS_TOKEN`; 32바이트 이상 별도 키, 기본 미설정이면 접근 거부 |
 
-설치/로컬 Compose/VAPID 생성/백업·복구/실기기 검사 절차는 [OPERATIONS.md](docs/OPERATIONS.md)를 사용합니다. Quick Tunnel이 HTTPS 주소를 제공하더라도 TURN 중계나 상시 서버 배포가 되는 것은 아닙니다.
+**기본 메신저 실행에는 RabbitMQ·Elasticsearch·TURN·Push 키가 필요하지 않습니다.** 선택 기능을 사용하려고 유료 서비스를 가입하지 않습니다. 설치/로컬 Compose/VAPID 생성/백업·복구/실기기 검사 절차는 [OPERATIONS.md](docs/OPERATIONS.md)를 사용합니다. Quick Tunnel이 HTTPS 주소를 제공하더라도 TURN 중계나 상시 서버 배포가 되는 것은 아닙니다.
 
 ## API Overview
 
@@ -194,24 +194,24 @@ ID 고유 인덱스 충돌이 있으면 안전하게 시작을 거부합니다. 
 
 ## Roadmap Status
 
-첨부된 기존 과제 목록을 기준으로 처리 상태를 나눴습니다. **코드를 추가한 것, 설정해서 사용하는 것, 실제 운영환경 검증은 서로 다릅니다.**
+첨부된 기존 8개 과제 영역을 기준으로 처리 상태를 나눴습니다. **구현 항목은 아래와 같고, 유료 인프라는 제외했으며, 실제 기기·운영 검증은 별도입니다.** 완료되지 않은 검증 항목을 삭제하거나 모두 완료로 표시하지 않습니다.
 
 | 기존 영역 | 이번 구현 | 별도 준비 / 남아 있는 검증 |
 |---|---|---|
 | 메시지 전달 신뢰성 | UUID 멱등 저장, 원자적 pending outbox/재발행, 전체 페이지 대조, 읽음 통합 | 브라우저 ACK/정확히 한 번 전달 아님; 전체 편집 이벤트 이력은 미보관 |
 | 알림·상태·커뮤니티 | Web Push 코드, 온라인/입력 중, 친구 승인·차단, 역할·채널 ACL·탈퇴/강퇴/이전/삭제·초대 철회 | VAPID 설정·실제 브라우저 Push 제공자/OS 도착 확인 |
 | 대화 확장 | 파일·답장·스레드·멘션, 최대 4명 음성·영상·화면 공유, 가상 메시지 창 | SFU/대규모 음성방 아님; 실제 화면 선택 UX·대용량 기기별 성능 확인 |
-| 음성통화 운영 | 장치 선택·이력·벨소리·Push 수신 안내·ICE restart·DB 공유 통화 제어 | 실제 장치/회사망/모바일망/TURN 중계 확인, 완전히 종료된 앱의 자동 음성 수신은 미지원 |
+| 음성통화 운영 | 장치 선택·이력·벨소리·Push 수신 안내·ICE restart·DB 공유 제어·활성 상태 재대조 | 실제 장치/회사망/모바일망/TURN 중계 확인, 완전히 종료된 앱의 자동 마이크 접근은 미지원 |
 | 인증·데이터 | refresh 회전/폐기, DB 요청 예산, 입력 정책, 중복/레거시 감사, 단일 읽음 기준 | 운영 데이터 충돌 정비는 백업 후 별도 승인·수행, 계정 복구/전체 보안 감사 별도 |
-| 운영·확장 | RabbitMQ relay, 보호된 모니터링, 안전한 새 DB 복구, OSV 검사, 로컬 soak | 운영 HA·백업 보관/복구 훈련, 장시간/대규모 부하·배포망 검증 |
+| 운영·확장 | RabbitMQ relay, 보호된 모니터링, 안전한 새 DB 복구, OSV 검사, 로컬 soak | 로컬 두 인스턴스/복구 검사와 별도로 운영 HA·백업 보관/복구 훈련, 장시간/대규모 부하 검증 |
 | 개발 공개 터널 | 별도 guardian으로 앱 강제 종료 후 소유 터널 정리 | 실제 Windows IntelliJ/Cloudflare 확인; 고정 주소·PC 종료 후 서비스는 별도 호스팅 문제 |
-| 검색 학습·확장 | Elasticsearch 버전 투영·ngram 분석기·비동기/재색인·Mongo 권한 재검증 | 실제 선택 인프라 설정, eventual consistency·인덱스 운영/장기 용량 확인 |
+| 검색 학습·확장 | Elasticsearch 버전 투영·ngram 분석기·비동기/재색인·Mongo 권한 재검증 | 자체 호스팅 Basic 설정, 비동기 반영 지연·인덱스 운영/장기 용량 확인 |
 
 파일당 10MiB·계정당 100MiB, UI 메모리 최근 1,000개, mesh 최대 4명, 공유 미디어 상태 최대 64세션은 **구현상 제한**이며 벤치마크로 측정한 수용량이 아닙니다. 첨부 quota/고아 청크 및 보관 파일 정비, Jackson 3 완전 전환, 더 큰 통화방의 SFU, 운영 요청 제한/HA 정책은 추가 운영·확장 범위입니다.
 
 ## Tests & Verification
 
-비용 기본 차단·백업 URI·친구 승인 컨테이너 검사·의존성 패치와 RabbitMQ wire 호환 처리를 후속 반영했습니다. CI는 Java/MongoDB/HTTP, 브라우저의 1:1·다인 미디어, 실제 로컬 broker/search·새 DB 복구, 공개 터널 프로세스, resolved 의존성 검사를 구분하여 실행합니다. 최신 **실행 대상 커밋·통과 수·실패/미검증 범위**는 아래 검증 기록을 기준으로 확인합니다.
+비용 기본 차단·백업 URI·친구 승인 컨테이너 검사·의존성 패치와 RabbitMQ wire 호환 처리를 후속 반영했습니다. CI는 Java/MongoDB/HTTP, 브라우저의 1:1·다인 미디어, 실제 로컬 broker/search·새 DB 복구, 공개 터널 프로세스, resolved 의존성 검사를 구분하여 실행합니다. 2026-10-07 후속 작업에서는 RabbitMQ의 실제 채널 동결 경계에서 발생하던 서버 발행 오류를 수정하고, 동일 경계를 지나는 회귀 검사를 추가했습니다. 새로고침 직후 분산 사용자 레지스트리 전파가 늦을 때 통화 종료 화면이 남는 문제도 보완했습니다. 활성 등록 통화만 3초 간격으로 서버 상태와 대조하며, 오래된 응답/다른 탭 수락/마이크 자원 정리를 검사합니다. [통화 상태 대조](docs/VOICE_STATE_RECONCILIATION.md)를 참고하세요. 최신 **실행 대상 커밋·통과 수·실패/미검증 범위**는 아래 검증 기록을 기준으로 확인합니다.
 
 실행 결과와 환경/fixture 범위는 [ROADMAP_VALIDATION.md](docs/ROADMAP_VALIDATION.md)에 기록합니다. 기존 [REFACTOR_VALIDATION.md](docs/REFACTOR_VALIDATION.md) 수치는 **이전 소스**의 기록입니다. 테스트 파일이 존재한다고 통과한 것으로 표시하지 않습니다.
 

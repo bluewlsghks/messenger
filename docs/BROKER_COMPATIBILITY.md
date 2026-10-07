@@ -4,7 +4,7 @@
 
 Relay 모드에서만 `BrokerDestinationCodec`이 애플리케이션의 `/topic/chat/{room}`·`/read`를 wire 목적지 `/topic/chat.{room}`·`.read`로 변환합니다. 기존 `/sub/chat/{room}` 구독 별칭은 유지됩니다. 클라이언트 요청은 **기존 인가 후 변환**, broker 수신은 **원래 논리 목적지로 복원 후 기존 outbound 재인가**합니다. 사용자 큐는 아래의 direct exchange 방식으로 변환하며, 내부 registry broadcast는 변환하지 않습니다. Simple Broker의 동작도 그대로입니다.
 
-와일드카드나 퍼센트 인코딩 입력을 새로운 허용 경로로 바꾸지 않습니다. DTO·저장 문서·REST URL은 변경하지 않습니다. 구독 ID, 명령, Principal 및 메시지 메타데이터를 보존하며 변환·읽음·역변환·비정상 입력·수신 권한 철회에 대한 Java 검사 12개를 추가했습니다. 실제 실행 결과는 ROADMAP_VALIDATION.md에 기록합니다.
+와일드카드나 퍼센트 인코딩 입력을 새로운 허용 경로로 바꾸지 않습니다. DTO·저장 문서·REST URL은 변경하지 않습니다. 구독 ID, 명령, Principal 및 메시지 메타데이터를 보존하며 변환·읽음·역변환·비정상 입력·수신 권한 철회와 채널 수명주기에 대한 Java 검사 14개를 포함합니다. 실제 실행 결과는 ROADMAP_VALIDATION.md에 기록합니다.
 
 유료 브로커를 생성하거나 외부 네트워크 정책을 완화한 것이 아닙니다. 선택적인 로컬 RabbitMQ와 기존 무료 실행 모드를 유지합니다.
 
@@ -24,4 +24,4 @@ Relay 모드에서만 `BrokerDestinationCodec`이 애플리케이션의 `/topic/
 
 서버 발행은 목적지만 변환하고 **SIMP accessor를 그대로 유지**합니다. relay가 이 메시지를 받아 새 STOMP accessor를 만든 뒤 시스템 세션을 설정하게 했습니다. 이미 인증된 클라이언트 구독/수신 프레임은 STOMP 명령·세션·구독 ID와 개인 큐의 exclusive/auto-delete 정책을 유지합니다. framework의 불변성 인터셉터를 제거하거나 권한 검사를 우회하지 않습니다.
 
-회귀 검사는 실제 `ExecutorSubscribableChannel → codec → ImmutableMessageChannelInterceptor → StompBrokerRelayMessageHandler`의 헤더 처리 경계를 통과합니다. 해당 단위 검사는 TCP delivery를 가장하지 않으며, 실제 두 앱/RabbitMQ 전송 검사는 별도의 infrastructure 시나리오에서 실행합니다. 실행 결과는 [ROADMAP_VALIDATION.md](ROADMAP_VALIDATION.md)를 참고합니다.
+회귀 검사는 실제 `ExecutorSubscribableChannel → codec → ImmutableMessageChannelInterceptor → StompBrokerRelayMessageHandler`의 헤더 처리 경계를 통과합니다. 해당 단위 검사는 TCP delivery를 가장하지 않으며, 실제 두 앱/RabbitMQ 전송 검사는 별도의 infrastructure 시나리오에서 실행합니다. 최종 소스 `0e0b8cb`의 인프라 실행 `37590069647`은 성공했습니다. 세부 결과는 [ROADMAP_VALIDATION.md](ROADMAP_VALIDATION.md)를 참고합니다.
