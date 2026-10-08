@@ -51,6 +51,7 @@ with sync_playwright() as p:
         ar.get_by_role('button',name='📌 고정',exact=True).click();expect(br.locator('.message-pin')).to_be_visible(timeout=15000)
         b.locator('#show-pins').click();expect(b.locator('.saved-message')).to_contain_text('collaboration original');b.locator('#dialog-close').click()
         passed('DM pin is shared and the pinned-message list loads current content')
+        b.screenshot(path=str(OUT/'collaboration-active.png'),full_page=True)
         # Keep the in-memory message window, stop the real transport, and deny new browser networking.
         b.evaluate('window.messengerRealtime.stop()');bc.set_offline(True)
         current=api(ac,at,'POST',f'/api/messages/{room}/snapshots',[message['id']])[0]

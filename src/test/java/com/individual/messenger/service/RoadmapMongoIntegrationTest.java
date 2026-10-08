@@ -74,7 +74,7 @@ class RoadmapMongoIntegrationTest {
         Set<String> ids=new HashSet<>();int created=0;
         try(var pool=Executors.newFixedThreadPool(6)){for(var future:pool.invokeAll(tasks)){var item=future.get();ids.add(item.message().id);if(item.created())created++;}}
         assertEquals(1,ids.size());assertEquals(1,created);assertEquals(1,messageRepo.count());
-        assertTrue(messageRepo.findAll().getFirst().publicationPending);verifyNoInteractions(broker);
+        assertTrue(messageRepo.findById(ids.iterator().next()).orElseThrow().publicationPending);verifyNoInteractions(broker);
     }
     @Test void requestIdCannotBeReusedWithDifferentPayloadAndSurvivesEdit() {
         String key=UUID.randomUUID().toString();Message first=store(key,"original").message();
@@ -203,13 +203,30 @@ class RoadmapMongoIntegrationTest {
         assertEquals(0,mongo.getCollection("fs.files").countDocuments());assertThrows(IllegalArgumentException.class,()->AttachmentService.sniff(new byte[]{0,1,2,3}));
     }
     MediaRegistry registry(VoiceEvents voice){return new MediaRegistry(new EphemeralStateStore(mongo,json,crypto),provider(voice));}
-    @Test void mediaStateIsEncryptedAndTwoInstancesShareOneUserReservation() {
+    @Test void mediaStateIsEncryptedAndTwoInstancesShareOneUserReservation() throws Exception {
         VoiceEvents voice=mock(VoiceEvents.class);when(voice.online(anyString())).thenReturn(true);
         var one=registry(voice);var two=registry(voice);
         var first=new VoiceCallService(access,rooms,voice,one);var second=new VoiceCallService(access,rooms,voice,two);
         UUID id=UUID.randomUUID(),tab=UUID.randomUUID();first.start(alice,id,tab,"dm");
         status(409,()->second.start(bob,UUID.randomUUID(),UUID.randomUUID(),"dm"));assertEquals(id,second.current(bob).id());
-        String raw=mongo.getCollection("media_state").find().first().toJson();assertFalse(raw.contains("alice"));assertFalse(raw.contains("bob"));assertFalse(raw.contains(id.toString()));
+        Document stored=mongo.getCollection("media_state").find().first();
+        assertNotNull(stored);
+        // Short login IDs can occur by chance inside URL-safe Base64 ciphertext. Inspect the
+        // storage envelope and authenticate/decrypt the payload instead of substring matching.
+        assertEquals(Set.of("_id","revision","encrypted","expiresAt"),stored.keySet());
+        assertEquals(MediaRegistry.KEY,stored.getString("_id"));
+        assertInstanceOf(Number.class,stored.get("revision"));
+        assertInstanceOf(Date.class,stored.get("expiresAt"));
+        String encrypted=stored.getString("encrypted");
+        assertNotNull(encrypted);assertTrue(encrypted.matches("[A-Za-z0-9_-]+"));
+        var payload=json.readTree(crypto.decryptString(encrypted));
+        var call=payload.path("calls").path(id.toString());
+        assertEquals("alice",call.path("caller").asText());assertEquals("bob",call.path("callee").asText());
+        assertEquals(id.toString(),payload.path("occupied").path("alice").asText());
+        assertEquals(id.toString(),payload.path("occupied").path("bob").asText());
+        byte[] damaged=Base64.getUrlDecoder().decode(encrypted);damaged[damaged.length-1]^=1;
+        String tampered=Base64.getUrlEncoder().withoutPadding().encodeToString(damaged);
+        assertThrows(RuntimeException.class,()->crypto.decryptString(tampered));
         first.command(alice,id,new VoiceCallDtos.Command(tab,VoiceCallDtos.Action.END,null,null));one.drain();
         assertNull(second.current(alice));assertEquals(1,second.history(bob).size());assertTrue(second.history(eve).isEmpty());
     }

@@ -38,12 +38,12 @@
       const ctx={roomId,messages:new Map(),rows:new Map(),heights:new Map(),attachments:[],replyToId:null,loading:false,sending:false,hasMore:true,initialized:false,reading:false,blocked:false,sync:{cursor:null},cacheGeneration:0,bookmarks:new Set(),bookmarksKnown:new Set(),bookmarkGeneration:0,collaborationPending:new Set()};this.context=ctx;this.notices.activeRoom=roomId;
       $('send-message').disabled=!this.realtime.ready;$('load-older').disabled=true;$('load-older').textContent='이전 메시지 더 보기';
       this.list.append(UI.empty('대화를 불러오는 중…','저장된 메시지를 확인하고 있습니다.'));
-      this.realtime.setReadTopic(roomId,receipt=>{if(!this.current(ctx))return;for(const id of receipt.messageIds||[]){const message=ctx.messages.get(id);if(message)message.readBy=[...new Set([...(message.readBy||[]),receipt.readerId])];}this.render(ctx,false);this.notices.refresh();});
+      this.realtime.setReadTopic(roomId,receipt=>{if(!this.current(ctx)||ctx.blocked)return;for(const id of receipt.messageIds||[]){const message=ctx.messages.get(id);if(message)message.readBy=[...new Set([...(message.readBy||[]),receipt.readerId])];}this.render(ctx,false);this.notices.refresh();});
       ctx.syncTimer=setInterval(()=>{if(!document.hidden)this.reconcile(ctx);},10000);
       this.reconcile(ctx);
     }
-    merge(ctx,messages){for(const message of messages){if(ctx.liveDuringSync&&!ctx.applyingSync)ctx.liveDuringSync.set(message.id,message);if(message.id&&message.roomId===ctx.roomId){ctx.messages.set(message.id,MessageMerge(ctx.messages.get(message.id),message));this.collaboration.invalidate(ctx,ctx.messages.get(message.id));}}}
-    notice(event){const ctx=this.context;if(!ctx||ctx.roomId!==event.roomId)return;const bottom=this.atBottom();this.merge(ctx,[event.message]);this.render(ctx,bottom);if(event.type==='MESSAGE_CREATED'&&!bottom)$('jump-latest').hidden=false;if(event.type==='MESSAGE_CREATED')$('announcements').textContent=`${event.message.senderName||event.message.senderId}님의 새 메시지`;this.queueRead(ctx);this.collaboration.refresh(ctx);}
+    merge(ctx,messages){if(ctx.blocked&&!ctx.applyingSync)return;for(const message of messages){if(ctx.liveDuringSync&&!ctx.applyingSync)ctx.liveDuringSync.set(message.id,message);if(message.id&&message.roomId===ctx.roomId){ctx.messages.set(message.id,MessageMerge(ctx.messages.get(message.id),message));this.collaboration.invalidate(ctx,ctx.messages.get(message.id));}}}
+    notice(event){const ctx=this.context;if(!ctx||ctx.blocked||ctx.roomId!==event.roomId)return;const bottom=this.atBottom();this.merge(ctx,[event.message]);this.render(ctx,bottom);if(event.type==='MESSAGE_CREATED'&&!bottom)$('jump-latest').hidden=false;if(event.type==='MESSAGE_CREATED')$('announcements').textContent=`${event.message.senderName||event.message.senderId}님의 새 메시지`;this.queueRead(ctx);this.collaboration.refresh(ctx);}
     async history(ctx,older){
       if(!this.current(ctx)||ctx.loading||(older&&!ctx.hasMore))return;ctx.loading=true;$('load-older').disabled=true;
       const generation=ctx.cacheGeneration;const height=this.list.scrollHeight;const top=this.list.scrollTop;const bottom=this.atBottom();let url=`/api/messages/${encodeURIComponent(ctx.roomId)}?limit=100`;
@@ -54,7 +54,7 @@
     }
     revoke(ctx,message){
       if(!this.current(ctx))return;
-      ctx.accessGeneration=(ctx.accessGeneration||0)+1;ctx.blocked=true;ctx.messages.clear();ctx.rows.clear();ctx.heights.clear();ctx.bookmarks.clear();ctx.sync.cursor=null;
+      ctx.accessGeneration=(ctx.accessGeneration||0)+1;ctx.blocked=true;ctx.messages.clear();ctx.rows.clear();ctx.heights.clear();ctx.bookmarks.clear();ctx.bookmarksKnown.clear();ctx.bookmarkGeneration++;ctx.capabilities=null;ctx.sync.cursor=null;
       ctx.cacheGeneration++;this.collaboration.close(ctx);this.input.disabled=true;$('send-message').disabled=true;
       this.list.replaceChildren(UI.empty('이 대화에 접근할 수 없습니다.',message||'참여 여부와 권한을 확인해 주세요.'));
       this.error(message);
@@ -82,13 +82,13 @@
           const bottom=!ctx.initialized||this.atBottom();
           if(page.reset){ctx.cacheGeneration++;ctx.messages.clear();ctx.rows.clear();ctx.heights.clear();ctx.oldest=page.items[0];ctx.hasMore=page.items.length===100;}
           ctx.applyingSync=true;try{this.merge(ctx,page.items);this.merge(ctx,[...ctx.liveDuringSync.values()]);}finally{ctx.applyingSync=false;}
-          if(ctx.messages.size>1000){const all=[...ctx.messages.values()].sort(orderMessages);for(const item of all.slice(0,all.length-1000)){ctx.messages.delete(item.id);ctx.rows.delete(item.id);ctx.heights.delete(item.id);}ctx.oldest=all.at(-1000);ctx.hasMore=true;}
+          if(bottom&&ctx.messages.size>1000){const all=[...ctx.messages.values()].sort(orderMessages);for(const item of all.slice(0,all.length-1000)){ctx.messages.delete(item.id);ctx.rows.delete(item.id);ctx.heights.delete(item.id);}ctx.oldest=all.at(-1000);ctx.hasMore=true;}
           ctx.initialized=true;ctx.blocked=false;this.input.disabled=false;
           $('send-message').disabled=!this.realtime.ready||ctx.sending;
           $('load-older').disabled=!ctx.hasMore;$('load-older').textContent=ctx.hasMore?'이전 메시지 더 보기':'대화의 시작입니다';
           this.render(ctx,bottom);this.queueRead(ctx);
         }});
-        if(this.current(ctx)){this.error('');this.notices.refresh();await this.collaboration.refresh(ctx);}
+        if(this.current(ctx)&&accessGeneration===(ctx.accessGeneration||0)&&!ctx.blocked){this.error('');this.notices.refresh();await this.collaboration.refresh(ctx);}
       }catch(error){
         if(this.current(ctx)){
           if([401,403,404].includes(error.status))this.revoke(ctx,error.message);
@@ -105,7 +105,7 @@
       dialog.form.prepend(more);more.click();
     }
     render(ctx,bottom){
-      if(!this.current(ctx))return;const top=this.list.scrollTop;const fragment=document.createDocumentFragment();let day='';
+      if(!this.current(ctx)||ctx.blocked)return;const top=this.list.scrollTop;const fragment=document.createDocumentFragment();let day='';
       const items=[...ctx.messages.values()].sort(orderMessages);
       const range=MessageWindow.windowRange(items,ctx.heights,bottom?Math.max(0,items.reduce((sum,m)=>sum+(ctx.heights.get(m.id)||100),0)-this.list.clientHeight):top,this.list.clientHeight);
       const spacer=height=>{const node=UI.el('div','virtual-spacer');node.style.height=height+'px';node.setAttribute('aria-hidden','true');return node;};
@@ -129,7 +129,7 @@
         }fragment.append(cached.row);
       }
       fragment.append(spacer(range.bottom));for(const id of ctx.rows.keys())if(!visibleIds.has(id))ctx.rows.delete(id);
-      if(!ctx.messages.size)fragment.append(UI.empty('첫 대화를 시작해 보세요','메시지를 남기면 이 공간의 대화가 차곡차곡 쌓입니다.'));
+      if(!ctx.messages.size)fragment.append(UI.empty('첫 대화를 시작해 보세요','메시지를 남기면 이 공간의 대화가 차곡곡 쌓입니다.'));
       this.list.replaceChildren(fragment);this.list.scrollTop=bottom?this.list.scrollHeight:top;
       for(const id of visibleIds){const row=ctx.rows.get(id)?.row;if(row)ctx.heights.set(id,Math.max(48,row.getBoundingClientRect().height+12));}
     }
@@ -143,7 +143,7 @@
       UI.storage.set(pendingKey,{fingerprint,requestId:payload.clientRequestId});
       try{const message=await Auth.request('/api/messages',{method:'POST',body:JSON.stringify(payload)});UI.storage.remove(pendingKey);ctx.attachments=[];ctx.replyToId=null;document.dispatchEvent(new Event('messenger:compose-reset'));if(UI.storage.get(key,'')===draft)UI.storage.remove(key);if(!this.current(ctx))return;this.merge(ctx,[message]);this.render(ctx,true);if(this.input.value===draft)this.input.value='';this.saveDraft();this.resize();}
       catch(error){if(this.current(ctx))this.error(`${error.message} 입력을 보존했습니다. 같은 내용으로 재시도하면 동일 전송 ID를 사용합니다.`);}
-      finally{ctx.sending=false;if(this.current(ctx)){$('send-message').disabled=!this.realtime.ready;this.input.focus();}}
+      finally{ctx.sending=false;if(this.current(ctx)){$('send-message').disabled=!this.realtime.ready||ctx.blocked;this.input.focus();}}
     }
     edit(ctx,message){UI.form({title:'메시지 수정',fields:[{name:'content',label:'메시지',type:'textarea',value:message.content,maxLength:4000}],onSubmit:async values=>{try{const changed=await Auth.request(`/api/messages/${encodeURIComponent(ctx.roomId)}/${encodeURIComponent(message.id)}`,{method:'PATCH',body:JSON.stringify({content:values.content,version:message.version||0})});if(this.current(ctx)){this.merge(ctx,[changed]);this.render(ctx,false);}}catch(error){if(error.status===409)this.history(ctx,false);throw error;}}});}
     remove(ctx,message){UI.form({title:'메시지를 삭제할까요?',description:'내용이 지워지고 삭제 표시가 남습니다. 이 작업은 되돌릴 수 없습니다.',fields:[],submitText:'삭제',danger:true,onSubmit:async()=>{const changed=await Auth.request(`/api/messages/${encodeURIComponent(ctx.roomId)}/${encodeURIComponent(message.id)}?version=${message.version||0}`,{method:'DELETE'});if(this.current(ctx)){this.merge(ctx,[changed]);this.render(ctx,false);}this.notices.refresh();}});}

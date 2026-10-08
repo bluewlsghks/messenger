@@ -13,16 +13,18 @@
     }
     path(ctx, suffix) { return `/api/messages/${encodeURIComponent(ctx.roomId)}/${suffix}`; }
     async refresh(ctx) {
-      if (!this.chat.current(ctx) || ctx.collaborationLoading) return;
+      if (!this.chat.current(ctx) || ctx.blocked || ctx.collaborationLoading) return;
       ctx.collaborationLoading = true;
       const generation = ctx.bookmarkGeneration || 0;
+      const accessGeneration = ctx.accessGeneration || 0;
       try {
         const ids = [...ctx.messages.keys()].slice(-1000);
         const [capabilities, saved] = await Promise.all([
           Auth.request(this.path(ctx, 'collaboration')),
           Auth.request(this.path(ctx, 'bookmark-status'), {method:'POST', body:JSON.stringify(ids)})
         ]);
-        if (!this.chat.current(ctx) || generation !== (ctx.bookmarkGeneration || 0)) return;
+        if (!this.chat.current(ctx) || ctx.blocked || accessGeneration !== (ctx.accessGeneration || 0)
+            || generation !== (ctx.bookmarkGeneration || 0)) return;
         ctx.capabilities = capabilities;
         ctx.bookmarks = new Set(saved.ids);
         ctx.bookmarksKnown = new Set(ids);
@@ -33,6 +35,7 @@
     }
     async change(ctx, message, suffix, enable, button, bookmark = false) {
       if (!this.chat.current(ctx) || ctx.blocked) return;
+      const accessGeneration = ctx.accessGeneration || 0;
       const operation = message.id + '/' + suffix;
       if (ctx.collaborationPending.has(operation)) return;
       ctx.collaborationPending.add(operation);
@@ -41,7 +44,7 @@
       try {
         const changed = await Auth.request(this.path(ctx, `${encodeURIComponent(message.id)}/${suffix}`),
           {method: enable ? 'PUT' : 'DELETE'});
-        if (!this.chat.current(ctx)) return;
+        if (!this.chat.current(ctx) || ctx.blocked || accessGeneration !== (ctx.accessGeneration || 0)) return;
         if (bookmark) {
           ctx.bookmarkGeneration++;
           if (enable) ctx.bookmarks.add(message.id); else ctx.bookmarks.delete(message.id);
