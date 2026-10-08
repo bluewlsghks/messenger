@@ -8,6 +8,9 @@
   class ChatPanel{
     constructor(realtime,notices){
       this.realtime=realtime;this.notices=notices;this.list=$('message-list');this.input=$('message-input');this.context=null;
+      this.collaboration=new MessageCollaboration(this);
+      window.addEventListener('messenger:logout',()=>this.close());
+      window.addEventListener('focus',()=>{const ctx=this.context;if(ctx){this.reconcile(ctx);this.refreshKnown(ctx);}});
       $('message-form').onsubmit=event=>{event.preventDefault();this.send();};
       this.input.addEventListener('keydown',event=>{if(isComposingEnter(event)){event.preventDefault();this.send();}});
       this.input.addEventListener('input',()=>{this.saveDraft();this.resize();});
@@ -17,7 +20,7 @@
       window.addEventListener('pagehide',()=>this.saveDraft());window.addEventListener('focus',()=>this.queueRead(this.context));
       document.addEventListener('visibilitychange',()=>this.queueRead(this.context));
       realtime.addEventListener('notice',event=>this.notice(event.detail));
-      realtime.addEventListener('state',event=>{const ctx=this.context;if(ctx){$('send-message').disabled=!event.detail.ready||ctx.sending||ctx.blocked;if(event.detail.ready){this.history(ctx,false);this.reconcile(ctx);}}});
+      realtime.addEventListener('state',event=>{const ctx=this.context;if(ctx){$('send-message').disabled=!event.detail.ready||ctx.sending||ctx.blocked;if(event.detail.ready){this.reconcile(ctx);this.refreshKnown(ctx);}}});
       $('emoji-button').onclick=()=>{$('emoji-picker').hidden=!$('emoji-picker').hidden;};
       for(const emoji of ['😀','😊','👍','❤️','🎉','🙏','👀','🚀']){$('emoji-picker').append(UI.button(emoji,()=>{if(this.input.disabled)return;const start=this.input.selectionStart;const end=this.input.selectionEnd;if(this.input.value.length-(end-start)+emoji.length>4000)return;this.input.setRangeText(emoji,start,end,'end');this.saveDraft();this.resize();this.input.focus();$('emoji-picker').hidden=true;},''));}
     }
@@ -27,41 +30,71 @@
     resize(){this.input.style.height='auto';this.input.style.height=Math.min(this.input.scrollHeight,150)+'px';$('character-count').textContent=`${this.input.value.length} / 4000`;}
     atBottom(){return this.list.scrollHeight-this.list.scrollTop-this.list.clientHeight<100;}
     error(message){$('chat-error').textContent=message||'';$('chat-error').hidden=!message;}
-    close(){this.saveDraft();const old=this.context;this.context=null;this.notices.activeRoom=null;if(old)clearTimeout(old.readTimer);this.realtime.setReadTopic(null,null);$('search-panel').hidden=true;this.input.disabled=true;$('send-message').disabled=true;$('emoji-picker').hidden=true;}
+    close(){this.saveDraft();const old=this.context;this.context=null;this.notices.activeRoom=null;if(old){clearTimeout(old.readTimer);clearInterval(old.syncTimer);this.collaboration.close(old);}this.realtime.setReadTopic(null,null);$('search-panel').hidden=true;this.input.disabled=true;$('send-message').disabled=true;$('emoji-picker').hidden=true;}
     open(roomId,title){
       if(this.context?.roomId===roomId)return;
       this.close();this.error('');this.list.replaceChildren();$('jump-latest').hidden=true;
       const draft=UI.storage.get(this.draftKey(roomId),'');this.input.value=typeof draft==='string'?draft:'';this.input.disabled=false;this.input.placeholder=`${title}에 메시지 보내기`;this.resize();
-      const ctx={roomId,messages:new Map(),rows:new Map(),heights:new Map(),attachments:[],replyToId:null,loading:false,sending:false,hasMore:true,initialized:false,reading:false,blocked:false};this.context=ctx;this.notices.activeRoom=roomId;
+      const ctx={roomId,messages:new Map(),rows:new Map(),heights:new Map(),attachments:[],replyToId:null,loading:false,sending:false,hasMore:true,initialized:false,reading:false,blocked:false,sync:{cursor:null},cacheGeneration:0,bookmarks:new Set(),bookmarksKnown:new Set(),bookmarkGeneration:0,collaborationPending:new Set()};this.context=ctx;this.notices.activeRoom=roomId;
       $('send-message').disabled=!this.realtime.ready;$('load-older').disabled=true;$('load-older').textContent='이전 메시지 더 보기';
       this.list.append(UI.empty('대화를 불러오는 중…','저장된 메시지를 확인하고 있습니다.'));
       this.realtime.setReadTopic(roomId,receipt=>{if(!this.current(ctx))return;for(const id of receipt.messageIds||[]){const message=ctx.messages.get(id);if(message)message.readBy=[...new Set([...(message.readBy||[]),receipt.readerId])];}this.render(ctx,false);this.notices.refresh();});
-      this.history(ctx,false);this.reconcile(ctx);
+      ctx.syncTimer=setInterval(()=>{if(!document.hidden)this.reconcile(ctx);},10000);
+      this.reconcile(ctx);
     }
-    merge(ctx,messages){for(const message of messages){if(message.id&&message.roomId===ctx.roomId)ctx.messages.set(message.id,MessageMerge(ctx.messages.get(message.id),message));}}
-    notice(event){const ctx=this.context;if(!ctx||ctx.roomId!==event.roomId)return;const bottom=this.atBottom();this.merge(ctx,[event.message]);this.render(ctx,bottom);if(event.type==='MESSAGE_CREATED'&&!bottom)$('jump-latest').hidden=false;if(event.type==='MESSAGE_CREATED')$('announcements').textContent=`${event.message.senderName||event.message.senderId}님의 새 메시지`;this.queueRead(ctx);}
+    merge(ctx,messages){for(const message of messages){if(ctx.liveDuringSync&&!ctx.applyingSync)ctx.liveDuringSync.set(message.id,message);if(message.id&&message.roomId===ctx.roomId){ctx.messages.set(message.id,MessageMerge(ctx.messages.get(message.id),message));this.collaboration.invalidate(ctx,ctx.messages.get(message.id));}}}
+    notice(event){const ctx=this.context;if(!ctx||ctx.roomId!==event.roomId)return;const bottom=this.atBottom();this.merge(ctx,[event.message]);this.render(ctx,bottom);if(event.type==='MESSAGE_CREATED'&&!bottom)$('jump-latest').hidden=false;if(event.type==='MESSAGE_CREATED')$('announcements').textContent=`${event.message.senderName||event.message.senderId}님의 새 메시지`;this.queueRead(ctx);this.collaboration.refresh(ctx);}
     async history(ctx,older){
       if(!this.current(ctx)||ctx.loading||(older&&!ctx.hasMore))return;ctx.loading=true;$('load-older').disabled=true;
-      const height=this.list.scrollHeight;const top=this.list.scrollTop;const bottom=this.atBottom();let url=`/api/messages/${encodeURIComponent(ctx.roomId)}?limit=100`;
+      const generation=ctx.cacheGeneration;const height=this.list.scrollHeight;const top=this.list.scrollTop;const bottom=this.atBottom();let url=`/api/messages/${encodeURIComponent(ctx.roomId)}?limit=100`;
       if(older&&ctx.oldest)url+=`&before=${encodeURIComponent(ctx.oldest.createdAt)}&beforeId=${encodeURIComponent(ctx.oldest.id)}`;
-      try{const messages=await Auth.request(url);if(!this.current(ctx))return;this.merge(ctx,messages);if(older||!ctx.initialized){ctx.hasMore=messages.length===100;if(messages.length)ctx.oldest=messages[0];}const initial=!ctx.initialized;ctx.initialized=true;ctx.blocked=false;this.render(ctx,initial||(!older&&bottom));if(older)this.list.scrollTop=top+this.list.scrollHeight-height;this.error('');this.queueRead(ctx);}
-      catch(error){if(this.current(ctx)){this.error(error.message);if(error.status===403||error.status===404){ctx.blocked=true;this.input.disabled=true;$('send-message').disabled=true;this.list.replaceChildren(UI.empty('이 대화에 접근할 수 없습니다.','서버 참여 여부 또는 대화방을 확인해 주세요.'));}else if(!ctx.initialized)this.list.replaceChildren(UI.empty('대화를 불러오지 못했습니다.',error.message,UI.button('다시 시도',()=>this.history(ctx,false))));}}
+      try{const messages=await Auth.request(url);if(!this.current(ctx)||generation!==ctx.cacheGeneration)return;this.merge(ctx,messages);if(older||!ctx.initialized){ctx.hasMore=messages.length===100;if(messages.length)ctx.oldest=messages[0];}const initial=!ctx.initialized;ctx.initialized=true;ctx.blocked=false;this.render(ctx,initial||(!older&&bottom));if(older)this.list.scrollTop=top+this.list.scrollHeight-height;this.error('');this.queueRead(ctx);this.collaboration.refresh(ctx);}
+      catch(error){if(this.current(ctx)){this.error(error.message);if([401,403,404].includes(error.status)){this.revoke(ctx,error.message);}else if(!ctx.initialized)this.list.replaceChildren(UI.empty('대화를 불러오지 못했습니다.',error.message,UI.button('다시 시도',()=>this.history(ctx,false))));}}
       finally{if(this.current(ctx)){ctx.loading=false;$('load-older').disabled=!ctx.hasMore;$('load-older').textContent=ctx.hasMore?'이전 메시지 더 보기':'대화의 시작입니다';}}
     }
-    async reconcile(ctx) {
-      if(!this.current(ctx)||ctx.reconciling)return;ctx.reconciling=true;let cursor=null,total=0;
-      try {
-        while(this.current(ctx)) {
-          const page=await Auth.request(`/api/messages/${encodeURIComponent(ctx.roomId)}/sync?limit=100${cursor?'&afterId='+encodeURIComponent(cursor):''}`);
-          if(!this.current(ctx))return;
-          this.merge(ctx,page);total+=page.length;
-          // All pages are reconciled; keep only a bounded live window. Older data stays available through history.
-          if(ctx.messages.size>1000){const all=[...ctx.messages.values()].sort(orderMessages);for(const item of all.slice(0,all.length-1000)){ctx.messages.delete(item.id);ctx.rows.delete(item.id);ctx.heights.delete(item.id);}ctx.oldest=all.at(-1000);ctx.hasMore=true;}
-          if(page.length<100)break;cursor=page.at(-1).id;
+    revoke(ctx,message){
+      if(!this.current(ctx))return;
+      ctx.accessGeneration=(ctx.accessGeneration||0)+1;ctx.blocked=true;ctx.messages.clear();ctx.rows.clear();ctx.heights.clear();ctx.bookmarks.clear();ctx.sync.cursor=null;
+      ctx.cacheGeneration++;this.collaboration.close(ctx);this.input.disabled=true;$('send-message').disabled=true;
+      this.list.replaceChildren(UI.empty('이 대화에 접근할 수 없습니다.',message||'참여 여부와 권한을 확인해 주세요.'));
+      this.error(message);
+    }
+    async refreshKnown(ctx){
+      if(!this.current(ctx)||ctx.refreshingKnown||ctx.blocked)return;
+      ctx.refreshingKnown=true;const generation=ctx.cacheGeneration;
+      try{
+        const ids=[...ctx.messages.keys()].slice(-1000);
+        for(let offset=0;offset<ids.length;offset+=100){
+          const items=await Auth.request(`/api/messages/${encodeURIComponent(ctx.roomId)}/snapshots`,{method:'POST',body:JSON.stringify(ids.slice(offset,offset+100))});
+          if(!this.current(ctx)||generation!==ctx.cacheGeneration)return;
+          this.merge(ctx,items);
         }
-        if(this.current(ctx)){this.render(ctx,true);this.notices.refresh();}
-      }catch(error){if(this.current(ctx))this.error(`동기화를 완료하지 못했습니다: ${error.message} · 새로고침으로 다시 시도할 수 있습니다.`);}
-      finally{ctx.reconciling=false;}
+        if(this.current(ctx))this.render(ctx,false);
+      }catch(error){if(this.current(ctx)&&[401,403,404].includes(error.status))this.revoke(ctx,error.message);}
+      finally{ctx.refreshingKnown=false;}
+    }
+    async reconcile(ctx) {
+      if(!this.current(ctx)||ctx.reconciling)return;
+      ctx.reconciling=true;ctx.liveDuringSync=new Map();
+      const accessGeneration=ctx.accessGeneration||0;
+      try{
+        await MessageSync.reconcile({roomId:ctx.roomId,state:ctx.sync,request:url=>Auth.request(url),current:()=>this.current(ctx)&&accessGeneration===(ctx.accessGeneration||0),apply:page=>{
+          const bottom=!ctx.initialized||this.atBottom();
+          if(page.reset){ctx.cacheGeneration++;ctx.messages.clear();ctx.rows.clear();ctx.heights.clear();ctx.oldest=page.items[0];ctx.hasMore=page.items.length===100;}
+          ctx.applyingSync=true;try{this.merge(ctx,page.items);this.merge(ctx,[...ctx.liveDuringSync.values()]);}finally{ctx.applyingSync=false;}
+          if(ctx.messages.size>1000){const all=[...ctx.messages.values()].sort(orderMessages);for(const item of all.slice(0,all.length-1000)){ctx.messages.delete(item.id);ctx.rows.delete(item.id);ctx.heights.delete(item.id);}ctx.oldest=all.at(-1000);ctx.hasMore=true;}
+          ctx.initialized=true;ctx.blocked=false;this.input.disabled=false;
+          $('send-message').disabled=!this.realtime.ready||ctx.sending;
+          $('load-older').disabled=!ctx.hasMore;$('load-older').textContent=ctx.hasMore?'이전 메시지 더 보기':'대화의 시작입니다';
+          this.render(ctx,bottom);this.queueRead(ctx);
+        }});
+        if(this.current(ctx)){this.error('');this.notices.refresh();await this.collaboration.refresh(ctx);}
+      }catch(error){
+        if(this.current(ctx)){
+          if([401,403,404].includes(error.status))this.revoke(ctx,error.message);
+          else this.error(`동기화를 완료하지 못했습니다: ${error.message} · 연결 복구 후 다시 시도합니다.`);
+        }
+      }finally{ctx.reconciling=false;ctx.liveDuringSync=null;}
     }
     setReply(message){if(!this.context)return;this.context.replyToId=message.id;document.dispatchEvent(new CustomEvent('messenger:reply',{detail:message}));this.input.focus();}
     async showThread(ctx,rootId){
@@ -80,7 +113,7 @@
       const visibleIds=new Set();
       for(const message of items.slice(range.start,range.end)){visibleIds.add(message.id);
         const date=new Date(message.createdAt);const next=date.toLocaleDateString('ko-KR');if(day!==next){fragment.append(UI.el('div','day-divider',next));day=next;}
-        const signature=JSON.stringify([message.version,message.readBy,message.senderName,message.content,message.deletedAt]);let cached=ctx.rows.get(message.id);
+        const signature=JSON.stringify([message.version,message.readBy,message.senderName,message.content,message.deletedAt,ctx.bookmarks.has(message.id),ctx.bookmarksKnown.has(message.id),ctx.capabilities]);let cached=ctx.rows.get(message.id);
         if(!cached||cached.signature!==signature){const row=UI.el('article',`message${message.deletedAt?' deleted':''}`);row.dataset.messageId=message.id;
           const main=UI.el('div','message-main');const meta=UI.el('div','message-meta');const time=UI.el('time','',date.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));time.dateTime=message.createdAt;
           meta.append(UI.el('strong','',message.senderName||message.senderId),time);if(message.editedAt&&!message.deletedAt)meta.append(UI.el('span','edited-label','수정됨'));
@@ -89,7 +122,7 @@
           if(!message.deletedAt){if(message.replyToId)main.append(UI.button('↩ 답장 스레드',()=>this.showThread(ctx,message.threadId||message.replyToId),'text-button'));
             if((message.mentions||[]).includes(Auth.getLoginId()))main.append(UI.el('span','mention-label','나를 멘션함'));
             for(const fileId of message.attachmentIds||[]){const download=UI.button('📎 첨부파일',async()=>{try{const info=await Auth.request(`/api/files/${encodeURIComponent(fileId)}`);const res=await Auth.authFetch(`/api/files/${encodeURIComponent(fileId)}/content`);if(!res.ok)throw new Error('파일을 내려받을 수 없습니다.');const url=URL.createObjectURL(await res.blob()),link=document.createElement('a');link.href=url;link.download=info.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){UI.toast('첨부파일',e.message);}},'attachment-link');main.append(download);}
-          }row.append(UI.avatar(message.senderName||message.senderId,message.senderId===Auth.getLoginId()),main);
+          }this.collaboration.decorate(ctx,message,main);row.append(UI.avatar(message.senderName||message.senderId,message.senderId===Auth.getLoginId()),main);
           if(!message.deletedAt){const tools=UI.el('div','message-tools');tools.append(UI.button('메시지에 답장',()=>this.setReply(message),'icon-button','chat'));tools.append(UI.button('메시지 복사',async()=>{try{await navigator.clipboard.writeText(message.content);UI.toast('복사했습니다.','메시지를 클립보드에 복사했습니다.');}catch(_){UI.toast('복사할 수 없습니다.','메시지 텍스트를 선택해 직접 복사해 주세요.');}},'icon-button','copy'));
             if(message.senderId===Auth.getLoginId()){tools.append(UI.button('메시지 수정',()=>this.edit(ctx,message),'icon-button','edit'),UI.button('메시지 삭제',()=>this.remove(ctx,message),'icon-button','trash'));}row.append(tools);}
           cached={signature,row};ctx.rows.set(message.id,cached);

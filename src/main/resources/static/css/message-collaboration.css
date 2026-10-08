@@ -1,0 +1,15 @@
+.history-bar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+.message-reactions,.message-collaboration-actions,.reaction-choices { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.message-reactions:empty { display:none; }
+.message-reactions { margin-top:6px; }
+.message-collaboration-actions { margin-top:4px; }
+.message-collaboration-actions .text-button { font-size:12px; padding:3px 5px; }
+.reaction-chip,.reaction-choice { border:1px solid var(--line); background:var(--surface); color:var(--text); border-radius:16px; padding:4px 10px; cursor:pointer; }
+.reaction-chip[aria-pressed="true"],.reaction-choice[aria-pressed="true"] { outline:2px solid currentColor; outline-offset:1px; }
+.reaction-choice { font-size:24px; padding:10px; }
+.message-pin { display:block; font-size:12px; padding-top:5px; color:var(--muted); }
+.saved-message-list { max-height:55vh; overflow:auto; }
+.saved-message { padding:12px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.saved-message p { white-space:pre-wrap; }
+.reaction-members { max-height:50vh; overflow:auto; overflow-wrap:anywhere; }
+@media(max-width:640px) { .history-bar { gap:6px; } .message-collaboration-actions { gap:4px; } }

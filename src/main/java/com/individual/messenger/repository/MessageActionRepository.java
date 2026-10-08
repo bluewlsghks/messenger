@@ -30,6 +30,8 @@ public class MessageActionRepository {
                 .and("senderId").is(owner).and("deletedAt").is(null), versionMatch);
         Update update = new Update().set("content", content == null ? "" : content).inc("version", 1)
                 .set("publicationPending", true).set("publishAfter", now).set("publicationAttempts", 0);
+        if (content == null) update.set("reactions", java.util.Map.of()).set("pinned", false)
+                .unset("pinnedBy").unset("pinnedAt");
         update.set(content == null ? "deletedAt" : "editedAt", now);
         return mongo.findAndModify(Query.query(match), update,
                 FindAndModifyOptions.options().returnNew(true), Message.class);

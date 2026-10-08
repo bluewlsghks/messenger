@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light"><title>Messenger</title>
-  <link rel="icon" href="data:,"><link rel="stylesheet" href="/css/workspace.css"><link rel="stylesheet" href="/css/voice-call.css"><link rel="stylesheet" href="/css/roadmap.css">
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="/css/workspace.css"><link rel="stylesheet" href="/css/voice-call.css"><link rel="stylesheet" href="/css/roadmap.css"><link rel="stylesheet" href="/css/message-collaboration.css">
   <script src="/js/ui.js" defer></script><script src="/js/auth.js" defer></script>
   <script src="/webjars/sockjs-client/1.6.1/dist/sockjs.min.js" defer></script>
   <script src="/webjars/stomp__stompjs/7.3.0/bundles/stomp.umd.min.js" defer></script>
   <script src="/js/realtime.js" defer></script><script src="/js/notifications.js" defer></script>
   <script src="/js/message-window.js" defer></script>
+<script src="/js/message-sync.js" defer></script><script src="/js/message-collaboration.js" defer></script>
 <script src="/js/conversation.js" defer></script><script src="/js/media-preferences.js" defer></script><script src="/js/voice-call.js" defer></script><script src="/js/workspace.js" defer></script>
 <script src="/js/community.js" defer></script><script src="/js/attachments.js" defer></script><script src="/js/web-push.js" defer></script><script src="/js/conference.js" defer></script>
 </head>
@@ -44,7 +45,7 @@
       <p class="footnote">친구와 서버의 대화는 왼쪽 목록에서 언제든 이어갈 수 있어요.</p>
     </section>
     <section id="chat-view" class="chat-view" hidden>
-      <div class="history-bar"><button id="load-older" class="text-button" disabled>이전 메시지 더 보기</button></div>
+      <div class="history-bar"><button id="show-pins" class="text-button" type="button">📌 고정 메시지</button><button id="show-bookmarks" class="text-button" type="button">☆ 내 북마크</button><button id="load-older" class="text-button" disabled>이전 메시지 더 보기</button></div>
       <div id="chat-error" class="error-banner" role="alert" hidden></div>
       <div id="message-list" class="message-list" aria-label="대화 내역" tabindex="0"></div>
       <button id="jump-latest" class="jump-latest" hidden>새 메시지 · 아래로 이동 ↓</button>
