@@ -75,6 +75,7 @@ jobs:
           python3 src/test/e2e/run_workspace.py
           python3 src/test/e2e/voice_calls.py
           python3 src/test/e2e/roadmap.py
+          python3 src/test/e2e/collaboration.py
       - name: Retain tested source snapshot
         if: always()
         run: git archive --format=zip --output=build/tested-source.zip HEAD

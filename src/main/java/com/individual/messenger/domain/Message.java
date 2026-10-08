@@ -33,6 +33,11 @@ public class Message {
     @JsonIgnore public Instant publicationLeaseUntil;
     @JsonIgnore public String publicationLease;
     @JsonIgnore public int publicationAttempts;
+    // Fixed ASCII reaction keys; values contain unique authenticated login IDs.
+    public java.util.Map<String, List<String>> reactions = new java.util.LinkedHashMap<>();
+    public boolean pinned;
+    public String pinnedBy;
+    public Instant pinnedAt;
     public List<String> readBy = new ArrayList<>();
     public Message() {}
     public Message(String roomId, String sender, String content) {
